@@ -16,7 +16,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - use: compnerd/gha-setup-swift@main
+      - uses: compnerd/gha-setup-swift@main
         with:
           branch: swift-5.5-release
           tag: 5.5-RELEASE
