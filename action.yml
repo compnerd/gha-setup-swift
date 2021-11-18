@@ -73,3 +73,14 @@ runs:
 
         popd
       shell: bash
+
+    - name: Install Swift ${{ inputs.tag }}
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        curl -sOL https://download.swift.org/${{ inputs.branch }}/xcode/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-osx.pkg
+        xattr -dr com.apple.quarantine swift-${{ inputs.tag }}-osx.pkg
+        installer -pkg swift-${{ inputs.tag }}-osx.pkg -target CurrentUserHomeDirectory
+        rm -f swift-${{ inputs.tag }}-osx.pkg
+
+        echo "TOOLCHAINS=$(plutil -extract 'CFBundleIdentifier' xml1 ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist | xmllint --xpath '//plist/string/text()' -)" >> $GITHUB_ENV
+      shell: bash
