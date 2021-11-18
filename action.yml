@@ -47,14 +47,17 @@ runs:
           16.04)
             curl -sOL https://download.swift.org/${{ inputs.branch }}/ubuntu1604/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu16.04.tar.gz
             tar zxf swift-${{ inputs.tag }}-ubuntu16.04.tar.gz -C ${HOME}
+            rm -f swift-${{ inputs.tag }}-ubuntu16.04.tar.gz
           ;;
           18.04)
             curl -sOL https://download.swift.org/${{ inputs.branch }}/ubuntu1804/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu18.04.tar.gz
             tar zxf swift-${{ inputs.tag }}-ubuntu18.04.tar.gz -C ${HOME}
+            rm -f swift-${{ inputs.tag }}-ubuntu18.04.tar.gz
           ;;
           20.04)
             curl -sOL https://download.swift.org/${{ inputs.branch }}/ubuntu2004/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu20.04.tar.gz
             tar zxf swift-${{ inputs.tag }}-ubuntu20.04.tar.gz -C ${HOME}
+            rm -f swift-${{ inputs.tag }}-ubuntu20.04.tar.gz
           ;;
           *)
             echo ::error unsupported Ubuntu release
@@ -67,4 +70,6 @@ runs:
         esac
 
         echo "${HOME}/usr/bin" >> $GITHUB_PATH
+
+        popd
       shell: bash
