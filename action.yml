@@ -43,8 +43,13 @@ runs:
       if: ${{ runner.os == 'Windows' }}
       run: |
         Copy-Item "$env:SDKROOT\usr\share\ucrt.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\module.modulemap"
-        Copy-Item "$env:SDKROOT\usr\share\visualc.modulemap" -destination "$env:VCToolsInstallDir\include\module.modulemap"
-        Copy-Item "$env:SDKROOT\usr\share\visualc.apinotes" -destination "$env:VCToolsInstallDir\include\visualc.apinotes"
+        if (Test-Path -Path "$env:SDKROOT\usr\share\vcruntime.modulemap") {
+          Copy-Item "$env:SDKROOT\usr\share\vcruntime.modulemap" -destination "$env:VCToolsInstallDir\include\module.modulemap"
+          Copy-Item "$env:SDKROOT\usr\share\vcruntime.apinotes" -destination "$env:VCToolsInstallDir\include\vcruntime.apinotes"
+        } else {
+          Copy-Item "$env:SDKROOT\usr\share\visualc.modulemap" -destination "$env:VCToolsInstallDir\include\module.modulemap"
+          Copy-Item "$env:SDKROOT\usr\share\visualc.apinotes" -destination "$env:VCToolsInstallDir\include\visualc.apinotes"
+        }
         Copy-Item "$env:SDKROOT\usr\share\winsdk.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\um\module.modulemap"
       shell: pwsh
 
