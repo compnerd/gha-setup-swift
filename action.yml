@@ -56,26 +56,19 @@ runs:
     - name: Install Swift ${{ inputs.tag }}
       if: ${{ runner.os == 'Linux' }}
       run: |
-        case $(lsb_release -is) in
-        Ubuntu)
-          release=$(lsb_release -rs)
-          case ${release} in
-          16.04|18.04|20.04)
-            curl -sOL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz
-            tar zxf swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -C ${HOME}
-            rm -f swift-${{ inputs.tag }}-ubuntu${release}.tar.gz
-          ;;
-          *)
-            echo ::error unsupported Ubuntu release
-            exit 1
-          esac
-        ;;
+        source /etc/os-release; OS="${ID}${VERSION_ID}"
+        case "${OS}" in
+        ubuntu16.04|ubuntu18.04|ubuntu20.04|centos7|centos8|amzn2)
+          mkdir -p -m 0755 ${HOME}/swift-${{ inputs.tag }}
+          cd ${HOME}/swift-${{ inputs.tag }}
+          curl -sLo toolchain.tgz https://download.swift.org/${{ inputs.branch }}/${OS/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-${OS}.tar.gz
+          # N.B. Can't strip the leading /usr because things rely on that prefix being under the install root.
+          tar -z -x --strip-components=1 -f toolchain.tgz && rm -f toolchain.tgz
         *)
-          echo ::error unknown Linux distribution
+          echo "::error file=/etc/os-release,title=Unsupported::unsupported Linux distribution ${RELEASE}"
           exit 1
         esac
-
-        echo "${HOME}/usr/bin" >> $GITHUB_PATH
+        echo "${HOME}/swift-${{ inputs.tag }}/usr/bin" >> $GITHUB_PATH
       shell: bash
 
     - name: Install Swift ${{ inputs.tag }}
@@ -86,5 +79,7 @@ runs:
         installer -pkg swift-${{ inputs.tag }}-osx.pkg -target CurrentUserHomeDirectory
         rm -f swift-${{ inputs.tag }}-osx.pkg
 
-        echo "TOOLCHAINS=$(plutil -extract 'CFBundleIdentifier' xml1 ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist | xmllint --xpath '//plist/string/text()' -)" >> $GITHUB_ENV
+        plist="${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist"
+        identifier="$(python3 -c 'from plistlib import load; from sys import argv; print(load(open(argv[1], "rb"))["CFBundleIdentifier"])' ${plist})"
+        echo "TOOLCHAINS=$identifier" >> $GITHUB_ENV
       shell: bash
