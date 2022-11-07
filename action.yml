@@ -56,17 +56,17 @@ runs:
     - name: Install Swift ${{ inputs.tag }}
       if: ${{ runner.os == 'Linux' }}
       run: |
-        case $(lsb_release -is) in
-        Ubuntu)
-          release=$(lsb_release -rs)
-          case ${release} in
+        source /etc/os-release
+        case ${ID} in
+        ubuntu)
+          case ${VERSION_ID} in
           16.04|18.04|20.04|22.04)
             curl -sOL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz
             tar zxf swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -C ${HOME}
             rm -f swift-${{ inputs.tag }}-ubuntu${release}.tar.gz
           ;;
           *)
-            echo ::error unsupported Ubuntu release
+            echo "::error file=/etc/os-release,title=Unsupported::unsupported ${OS} release (${VERSION_ID})"
             exit 1
           esac
         ;;
