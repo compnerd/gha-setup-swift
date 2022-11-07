@@ -60,7 +60,7 @@ runs:
         case ${ID} in
         ubuntu)
           case ${VERSION_ID} in
-          16.04|18.04|20.04)
+          16.04|18.04|20.04|22.04)
             curl -sOL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz
             tar zxf swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -C ${HOME}
             rm -f swift-${{ inputs.tag }}-ubuntu${release}.tar.gz
