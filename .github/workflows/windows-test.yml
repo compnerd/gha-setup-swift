@@ -1,7 +1,7 @@
 name: Windows - test
 
 on:
-  workflow_call:
+  workflow_dispatch:
 
 env:
   BUILD_PRESET: debug
