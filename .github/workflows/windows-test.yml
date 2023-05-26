@@ -1,0 +1,23 @@
+name: Windows - test
+
+on:
+  workflow_dispatch:
+
+env:
+  BUILD_PRESET: debug
+
+jobs:
+  build-on-win:
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Swift
+      uses: ./
+      with:
+        branch: development
+        tag: DEVELOPMENT-SNAPSHOT-2023-05-20-a
+
+    - name: check swift version
+      run: swift --version
