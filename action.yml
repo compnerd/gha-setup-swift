@@ -113,11 +113,11 @@ runs:
         ubuntu)
           case ${VERSION_ID} in
           16.04|18.04|20.04|22.04)
-            if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
+            if [[ "${{ steps.validation.outputs.use_custom_url }}" -eq "1" ]]; then
               mv "${{ inputs.github-release-asset-name }}" swift-toolchain.tar.gz
-            } else {
+            else
               curl -sL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -o swift-toolchain.tar.gz
-            }
+            fi
             tar zxf swift-toolchain.tar.gz -C ${HOME}
             rm -f swift-toolchain.tar.gz
           ;;
@@ -137,11 +137,11 @@ runs:
     - name: Install Swift ${{ inputs.tag }}
       if: runner.os == 'macOS'
       run: |
-        if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
+        if [[ "${{ steps.validation.outputs.use_custom_url }}" -eq "1" ]]; then
           mv "${{ inputs.github-release-asset-name }}" swift-${{ inputs.tag }}-osx.pkg
-        } else {
+        else
           curl -sOL https://download.swift.org/${{ inputs.branch }}/xcode/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-osx.pkg
-        }
+        fi
         xattr -dr com.apple.quarantine swift-${{ inputs.tag }}-osx.pkg
         installer -pkg swift-${{ inputs.tag }}-osx.pkg -target CurrentUserHomeDirectory
         rm -f swift-${{ inputs.tag }}-osx.pkg
