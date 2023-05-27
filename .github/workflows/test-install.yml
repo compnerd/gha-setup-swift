@@ -6,6 +6,7 @@ on:
 jobs:
   install-swift:
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
 

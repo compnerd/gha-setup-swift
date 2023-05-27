@@ -36,9 +36,9 @@ runs:
             echo >&2 "::error::inputs Invalid action inputs: github-release-asset-name has to be a '*.pkg' file on MacOS platforms."
             exit 1
           fi
-          echo "use_custom_url=1\n" >> $GITHUB_OUTPUT
+          echo "use_custom_url=1" >> $GITHUB_OUTPUT
         elif [[ -z "${{ inputs.github-repo }}" && -z "${{ inputs.github-release-asset-name }}" ]]; then
-          echo "use_custom_url=0\n" >> $GITHUB_OUTPUT
+          echo "use_custom_url=0" >> $GITHUB_OUTPUT
         else
           echo >&2 "::error::inputs Invalid action inputs: for fetching the Swift toolchain, please specify github-repo and github-release-asset-name."
           exit 1
