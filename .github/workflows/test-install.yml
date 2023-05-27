@@ -1,14 +1,16 @@
-name: Windows - test
+name: Test install
 
 on:
   workflow_dispatch:
 
-env:
-  BUILD_PRESET: debug
-
 jobs:
-  build-on-win:
-    runs-on: windows-2022
+  install-swift:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+
+    name: Test Swift toolchain install on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v3
