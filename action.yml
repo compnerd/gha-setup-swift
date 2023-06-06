@@ -72,15 +72,8 @@ runs:
           }
         }
 
-        if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
-          $process = Start-Process -FilePath "${{ inputs.github-release-asset-name }}" -Wait -PassThru
-          $exitCode = $process.ExitCode
-          if ($exitCode -eq 0 -or $exitCode -eq 3010) {
-            Write-Host "Installation successful in $installCompleteTime seconds"
-          } else {
-            Write-Host "Non zero exit code returned by the installation process: $exitCode"
-            exit $exitCode
-          }
+        if ("${{ steps.validation.outputs.use_custom_url }}" == "1") {
+          Install-Binary -FilePath "${{ inputs.github-release-asset-name }}" -ArgumentList ("-q")
         } else {
           Install-Binary -Url "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -Name "installer.exe" -ArgumentList ("-q")
         }
@@ -117,7 +110,7 @@ runs:
         ubuntu)
           case ${VERSION_ID} in
           16.04|18.04|20.04|22.04)
-            if [[ "${{ steps.validation.outputs.use_custom_url }}" -eq "1" ]]; then
+            if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
               mv "${{ inputs.github-release-asset-name }}" swift-toolchain.tar.gz
             else
               curl -sL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -o swift-toolchain.tar.gz
@@ -141,7 +134,7 @@ runs:
     - name: Install Swift ${{ inputs.tag }}
       if: runner.os == 'macOS'
       run: |
-        if [[ "${{ steps.validation.outputs.use_custom_url }}" -eq "1" ]]; then
+        if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
           mv "${{ inputs.github-release-asset-name }}" swift-${{ inputs.tag }}-osx.pkg
         else
           curl -sOL https://download.swift.org/${{ inputs.branch }}/xcode/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-osx.pkg
