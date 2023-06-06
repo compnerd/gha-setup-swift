@@ -72,7 +72,7 @@ runs:
           }
         }
 
-        if ("${{ steps.validation.outputs.use_custom_url }}" == "1") {
+        if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
           Install-Binary -FilePath "${{ inputs.github-release-asset-name }}" -ArgumentList ("-q")
         } else {
           Install-Binary -Url "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -Name "installer.exe" -ArgumentList ("-q")
