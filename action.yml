@@ -29,21 +29,25 @@ runs:
       shell: bash
       run: |
         if [[ -n "${{ inputs.github-repo }}" && -n "${{ inputs.github-release-asset-name }}" ]]; then
-          if [[ "${{ runner.os }}" -eq "Linux" && ! ("${{ inputs.github-release-asset-name }}" == *.tar.gz )]]; then
+          if [[ "${{ runner.os }}" == "Linux" && "${{ inputs.github-release-asset-name }}" != *.tar.gz ]]; then
             echo >&2 "::error::inputs Invalid action inputs: github-release-asset-name has to be a '*.tar.gz' file on Linux platforms."
             exit 1
-          elif [[ "${{ runner.os }}" -eq "macOS" && ! ("${{ inputs.github-release-asset-name }}" == *.pkg )]]; then
+          elif [[ "${{ runner.os }}" == "macOS" && "${{ inputs.github-release-asset-name }}" != *.pkg ]]; then
             echo >&2 "::error::inputs Invalid action inputs: github-release-asset-name has to be a '*.pkg' file on MacOS platforms."
+            exit 1
+          elif [[ "${{ runner.os }}" == "Windows" && "${{ inputs.github-release-asset-name }}" != *.exe ]]; then
+            echo >&2 "::error::inputs Invalid action inputs: github-release-asset-name has to be a '*.exe' file on Windows platforms."
             exit 1
           fi
           echo "use_custom_url=1" >> $GITHUB_OUTPUT
         elif [[ -z "${{ inputs.github-repo }}" && -z "${{ inputs.github-release-asset-name }}" ]]; then
           echo "use_custom_url=0" >> $GITHUB_OUTPUT
         else
-          echo >&2 "::error::inputs Invalid action inputs: for fetching the Swift toolchain, please specify github-repo and github-release-asset-name."
+          echo >&2 "::error::inputs Invalid action inputs: for fetching a custom Swift toolchain, please specify github-repo, branch, tag and github-release-asset-name inputs."
+          echo >&2 "::error::inputs For using the Swift official toolchain, please specify only branch and tag inputs."
           exit 1
         fi
-      
+
     - name: Fetch installer from Github release
       uses: dsaltares/fetch-gh-release-asset@a40c8b4a0471f9ab81bdf73a010f74cc51476ad4  # pinned commit for v1.1
       if: steps.validation.outputs.use_custom_url == 1
