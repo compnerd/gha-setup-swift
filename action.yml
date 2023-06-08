@@ -44,7 +44,7 @@ runs:
             exit 1
           fi
           echo "use_custom_url=1" >> $GITHUB_OUTPUT
-        elif [[ -n "${{ inputs.branch }}" && -z "${{ inputs.tag }}" ]]; then
+        elif [[ -n "${{ inputs.branch }}" && -n "${{ inputs.tag }}" ]]; then
           echo "use_custom_url=0" >> $GITHUB_OUTPUT
         else
           echo >&2 "::error::inputs Invalid action inputs"
