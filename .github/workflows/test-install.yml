@@ -1,0 +1,26 @@
+name: Test install
+
+on:
+  workflow_dispatch:
+
+jobs:
+  install-swift:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]   # ubuntu-latest is not working at the moment
+
+    name: Test Swift toolchain install on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Swift
+      uses: ./
+      with:
+        branch: development
+        tag: DEVELOPMENT-SNAPSHOT-2023-05-20-a
+
+    - name: check swift version
+      run: swift --version

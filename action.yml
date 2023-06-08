@@ -2,19 +2,68 @@ name: Install Swift
 description: Install Swift Release
 
 inputs:
+  # for swift.org toolchains:
   branch:
-    description: 'Swift Build Branch'
-    required: true
+    description: 'Branch for swift.org builds. Only specifiy when using official Swift toolchains from swift.org'
+    required: false
   tag:
-    description: 'Swift Build Tag'
-    required: true
+    description: 'Tag for swift.org builds. Only specifiy when using official Swift toolchains from swift.org'
+    required: false
+
+  # for custom toolchains:
+  github-repo:
+    description: 'Github repo in "owner/repo" format. Only specify when using custom toolchains from Github releases.'
+    required: false
+  release-tag-name:
+    description: 'Release tag name. Only specify when using custom toolchains from Github releases.'
+    required: false
+  release-asset-name:
+    description: 'Asset name for the Swift installer executable in the release. Only specify when using custom toolchains from Github releases.'
+    required: false
+  github-token:
+    description: 'Optional Github token for fetching a release. Only specify when using custom toolchains from non-public Github releases.'
+    required: false
 
 runs:
   using: 'composite'
 
   steps:
+    - name: Validate inputs
+      id: validation
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.github-repo }}" && -n "${{ inputs.release-tag-name }}" && -n "${{ inputs.release-asset-name }}" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" && "${{ inputs.release-asset-name }}" != *.tar.gz ]]; then
+            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.tar.gz' file on Linux platforms."
+            exit 1
+          elif [[ "${{ runner.os }}" == "macOS" && "${{ inputs.release-asset-name }}" != *.pkg ]]; then
+            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.pkg' file on MacOS platforms."
+            exit 1
+          elif [[ "${{ runner.os }}" == "Windows" && "${{ inputs.release-asset-name }}" != *.exe ]]; then
+            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.exe' file on Windows platforms."
+            exit 1
+          fi
+          echo "use_custom_url=1" >> $GITHUB_OUTPUT
+        elif [[ -n "${{ inputs.branch }}" && -n "${{ inputs.tag }}" ]]; then
+          echo "use_custom_url=0" >> $GITHUB_OUTPUT
+        else
+          echo >&2 "::error::inputs Invalid action inputs"
+          echo >&2 "::error::  for a custom Swift toolchain, specify github-repo, release-tag-name and release-asset-name"
+          echo >&2 "::error::  for the official swift.org toolchain, specify only branch and tag"
+          exit 1
+        fi
+
+    - name: Fetch installer from Github release
+      uses: dsaltares/fetch-gh-release-asset@a40c8b4a0471f9ab81bdf73a010f74cc51476ad4  # pinned commit for v1.1
+      if: steps.validation.outputs.use_custom_url == 1
+      with:
+        repo: '${{ inputs.github-repo }}'
+        version: 'tags/${{ inputs.release-tag-name }}'
+        file: '${{ inputs.release-asset-name }}'
+        token: ${{ inputs.github-token }}
+
     - name: Install Swift ${{ inputs.tag }}
-      if: ${{ runner.os == 'Windows' }}
+      if: runner.os == 'Windows'
       run: |
         function Update-EnvironmentVariables {
           foreach ($level in "Machine", "User") {
@@ -28,7 +77,11 @@ runs:
           }
         }
 
-        Install-Binary -Url "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -Name "installer.exe" -ArgumentList ("-q")
+        if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
+          Install-Binary -FilePath "${{ inputs.release-asset-name }}" -ArgumentList ("-q")
+        } else {
+          Install-Binary -Url "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -Name "installer.exe" -ArgumentList ("-q")
+        }
         Update-EnvironmentVariables
 
         # Reset Path and environment
@@ -37,10 +90,11 @@ runs:
       shell: pwsh
 
     - name: VS2022 Compatibility Setup
-      if: ${{ runner.os == 'Windows' }}
+      if: runner.os == 'Windows'
       uses: compnerd/gha-setup-vsdevenv@main
+
     - name: VS2022 Compatibility Installation
-      if: ${{ runner.os == 'Windows' }}
+      if: runner.os == 'Windows'
       run: |
         Copy-Item "$env:SDKROOT\usr\share\ucrt.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\module.modulemap"
         if (Test-Path -Path "$env:SDKROOT\usr\share\vcruntime.modulemap") {
@@ -54,16 +108,20 @@ runs:
       shell: pwsh
 
     - name: Install Swift ${{ inputs.tag }}
-      if: ${{ runner.os == 'Linux' }}
+      if: runner.os == 'Linux'
       run: |
         source /etc/os-release
         case ${ID} in
         ubuntu)
           case ${VERSION_ID} in
           16.04|18.04|20.04|22.04)
-            curl -sOL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz
-            tar zxf swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -C ${HOME}
-            rm -f swift-${{ inputs.tag }}-ubuntu${release}.tar.gz
+            if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
+              mv "${{ inputs.release-asset-name }}" swift-toolchain.tar.gz
+            else
+              curl -sL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -o swift-toolchain.tar.gz
+            fi
+            tar zxf swift-toolchain.tar.gz -C ${HOME}
+            rm -f swift-toolchain.tar.gz
           ;;
           *)
             echo "::error file=/etc/os-release,title=Unsupported::unsupported ${OS} release (${VERSION_ID})"
@@ -79,9 +137,13 @@ runs:
       shell: bash
 
     - name: Install Swift ${{ inputs.tag }}
-      if: ${{ runner.os == 'macOS' }}
+      if: runner.os == 'macOS'
       run: |
-        curl -sOL https://download.swift.org/${{ inputs.branch }}/xcode/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-osx.pkg
+        if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
+          mv "${{ inputs.release-asset-name }}" swift-${{ inputs.tag }}-osx.pkg
+        else
+          curl -sOL https://download.swift.org/${{ inputs.branch }}/xcode/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-osx.pkg
+        fi
         xattr -dr com.apple.quarantine swift-${{ inputs.tag }}-osx.pkg
         installer -pkg swift-${{ inputs.tag }}-osx.pkg -target CurrentUserHomeDirectory
         rm -f swift-${{ inputs.tag }}-osx.pkg
