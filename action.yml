@@ -2,22 +2,26 @@ name: Install Swift
 description: Install Swift Release
 
 inputs:
-  # For official swift.org builds: specify only branch and tag
-  # For a custom toolchain build from a Github release: specify github-repo ("owner/repo"), branch, tag and github-release-asset-name
+  # for swift.org toolchains:
   branch:
-    description: 'Swift build branch for swift.org builds, or Git branch for Github releases'
-    required: true
-  tag:
-    description: 'Swift build tag for swift.org builds, or tag ("tags/TAG") or release name for Github releases'
-    required: true
-  github-token:
-    description: 'Github token for fetching a release. Only specify when using custom toolchains from Github releases.'
+    description: 'Branch for swift.org builds. Only specifiy when using official Swift toolchains from swift.org'
     required: false
+  tag:
+    description: 'Tag for swift.org builds. Only specifiy when using official Swift toolchains from swift.org'
+    required: false
+
+  # for custom toolchains:
   github-repo:
     description: 'Github repo in "owner/repo" format. Only specify when using custom toolchains from Github releases.'
     required: false
-  github-release-asset-name:
+  release-tag-name:
+    description: 'Release tag name. Only specify when using custom toolchains from Github releases.'
+    required: false
+  release-asset-name:
     description: 'Asset name for the Swift installer executable in the release. Only specify when using custom toolchains from Github releases.'
+    required: false
+  github-token:
+    description: 'Optional Github token for fetching a release. Only specify when using custom toolchains from non-public Github releases.'
     required: false
 
 runs:
@@ -28,23 +32,24 @@ runs:
       id: validation
       shell: bash
       run: |
-        if [[ -n "${{ inputs.github-repo }}" && -n "${{ inputs.github-release-asset-name }}" ]]; then
-          if [[ "${{ runner.os }}" == "Linux" && "${{ inputs.github-release-asset-name }}" != *.tar.gz ]]; then
-            echo >&2 "::error::inputs Invalid action inputs: github-release-asset-name has to be a '*.tar.gz' file on Linux platforms."
+        if [[ -n "${{ inputs.github-repo }}" && -n "${{ inputs.release-tag-name }}" && -n "${{ inputs.release-asset-name }}" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" && "${{ inputs.release-asset-name }}" != *.tar.gz ]]; then
+            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.tar.gz' file on Linux platforms."
             exit 1
-          elif [[ "${{ runner.os }}" == "macOS" && "${{ inputs.github-release-asset-name }}" != *.pkg ]]; then
-            echo >&2 "::error::inputs Invalid action inputs: github-release-asset-name has to be a '*.pkg' file on MacOS platforms."
+          elif [[ "${{ runner.os }}" == "macOS" && "${{ inputs.release-asset-name }}" != *.pkg ]]; then
+            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.pkg' file on MacOS platforms."
             exit 1
-          elif [[ "${{ runner.os }}" == "Windows" && "${{ inputs.github-release-asset-name }}" != *.exe ]]; then
-            echo >&2 "::error::inputs Invalid action inputs: github-release-asset-name has to be a '*.exe' file on Windows platforms."
+          elif [[ "${{ runner.os }}" == "Windows" && "${{ inputs.release-asset-name }}" != *.exe ]]; then
+            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.exe' file on Windows platforms."
             exit 1
           fi
           echo "use_custom_url=1" >> $GITHUB_OUTPUT
-        elif [[ -z "${{ inputs.github-repo }}" && -z "${{ inputs.github-release-asset-name }}" ]]; then
+        elif [[ -n "${{ inputs.branch }}" && -z "${{ inputs.tag }}" ]]; then
           echo "use_custom_url=0" >> $GITHUB_OUTPUT
         else
-          echo >&2 "::error::inputs Invalid action inputs: for fetching a custom Swift toolchain, please specify github-repo, branch, tag and github-release-asset-name inputs."
-          echo >&2 "::error::inputs For using the Swift official toolchain, please specify only branch and tag inputs."
+          echo >&2 "::error::inputs Invalid action inputs"
+          echo >&2 "::error::  for a custom Swift toolchain, specify github-repo, release-tag-name and release-asset-name"
+          echo >&2 "::error::  for the official swift.org toolchain, specify only branch and tag"
           exit 1
         fi
 
@@ -53,8 +58,8 @@ runs:
       if: steps.validation.outputs.use_custom_url == 1
       with:
         repo: '${{ inputs.github-repo }}'
-        version: '${{ inputs.tag }}'
-        file: '${{ inputs.github-release-asset-name }}'
+        version: 'tags/${{ inputs.release-tag-name }}'
+        file: '${{ inputs.release-asset-name }}'
         token: ${{ inputs.github-token }}
 
     - name: Install Swift ${{ inputs.tag }}
@@ -73,7 +78,7 @@ runs:
         }
 
         if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
-          Install-Binary -FilePath "${{ inputs.github-release-asset-name }}" -ArgumentList ("-q")
+          Install-Binary -FilePath "${{ inputs.release-asset-name }}" -ArgumentList ("-q")
         } else {
           Install-Binary -Url "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -Name "installer.exe" -ArgumentList ("-q")
         }
@@ -111,7 +116,7 @@ runs:
           case ${VERSION_ID} in
           16.04|18.04|20.04|22.04)
             if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
-              mv "${{ inputs.github-release-asset-name }}" swift-toolchain.tar.gz
+              mv "${{ inputs.release-asset-name }}" swift-toolchain.tar.gz
             else
               curl -sL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -o swift-toolchain.tar.gz
             fi
@@ -135,7 +140,7 @@ runs:
       if: runner.os == 'macOS'
       run: |
         if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
-          mv "${{ inputs.github-release-asset-name }}" swift-${{ inputs.tag }}-osx.pkg
+          mv "${{ inputs.release-asset-name }}" swift-${{ inputs.tag }}-osx.pkg
         else
           curl -sOL https://download.swift.org/${{ inputs.branch }}/xcode/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-osx.pkg
         fi
