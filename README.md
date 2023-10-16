@@ -39,7 +39,7 @@ jobs:
         with:
           release-tag-name: "20230530.2"
           github-repo: mycompany/swift-toolchain-build
-          github-release-asset-name: installer-amd64.exe
+          release-asset-name: installer-amd64.exe
 
       - uses: actions/checkout@v2
       - run: swift build
