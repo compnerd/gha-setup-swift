@@ -215,7 +215,7 @@ runs:
         }
 
         if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
-          Invoke-Installer -FilePath "${{ inputs.release-asset-name }}" -InstallArgs ("/quiet")
+          Invoke-Installer -LocalPath "${{ inputs.release-asset-name }}" -InstallArgs ("/quiet")
         } else {
           Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("/quiet")
         }
