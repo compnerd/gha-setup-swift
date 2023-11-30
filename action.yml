@@ -150,8 +150,8 @@ runs:
             [String] $LocalPath,
             [ValidateSet("MSI", "EXE")]
             [String] $Type,
-            [String[]] $InstallArgs,
-            [String[]] $ExtraInstallArgs,
+            [String[]] $InstallArgs = $null, # Use default for installer format
+            [String[]] $ExtraInstallArgs = @(),
             [String] $ExpectedSHA256
           )
 
@@ -176,15 +176,16 @@ runs:
 
           switch ($Type) {
             "EXE" {
-              $InstallArgs = $ExtraInstallArgs
+              if (-not $InstallArgs) { $InstallArgs = @() }
+              $InstallArgs += $ExtraInstallArgs
             }
             "MSI" {
-              if ($ExtraInstallArgs) {
-                $InstallArgs = @("/i", $FilePath, "/qn", "/norestart") + $ExtraInstallArgs
-              } elseif (-not $InstallArgs) {
+              if (-not $InstallArgs) {
                 Write-Host "Using default MSI arguments: /i, /qn, /norestart"
                 $InstallArgs = @("/i", $FilePath, "/qn", "/norestart")
               }
+
+              $InstallArgs += $ExtraInstallArgs
               $FilePath = "msiexec.exe"
             }
             default {
@@ -214,9 +215,9 @@ runs:
         }
 
         if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
-          Invoke-Installer -FilePath "${{ inputs.release-asset-name }}" -InstallArgs ("-q")
+          Invoke-Installer -FilePath "${{ inputs.release-asset-name }}" -InstallArgs ("/quiet")
         } else {
-          Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("-q")
+          Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("/quiet")
         }
         Update-EnvironmentVariables
 
