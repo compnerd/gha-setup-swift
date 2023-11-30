@@ -181,7 +181,7 @@ runs:
             "MSI" {
               if ($ExtraInstallArgs) {
                 $InstallArgs = @("/i", $FilePath, "/qn", "/norestart") + $ExtraInstallArgs
-              } else if (-not $InstallArgs) {
+              } elseif (-not $InstallArgs) {
                 Write-Host "Using default MSI arguments: /i, /qn, /norestart"
                 $InstallArgs = @("/i", $FilePath, "/qn", "/norestart")
               }
