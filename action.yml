@@ -83,24 +83,21 @@ runs:
             [Parameter(Mandatory)]
             [String] $URL,
             [Alias("Destination")]
-            [String] $Path,
-            [Int] $Retries = 20
+            [Int] $Retries = 20,
+            [Int] $RetryInterval = 30
           )
 
-          if (-not $Path) {
-            $InvalidCharacters = [IO.Path]::GetInvalidFileNameChars() -Join ''
-            $RE = "[{0}]" -f [RegEx]::Escape($InvalidCharacters)
-            $FileName = [IO.Path]::GetFileName($URL) -Replace $RE
+          $InvalidCharacters = [IO.Path]::GetInvalidFileNameChars() -Join ''
+          $RE = "[{0}]" -f [RegEx]::Escape($InvalidCharacters)
+          $FileName = [IO.Path]::GetFileName($URL) -Replace $RE
 
-            if ([String]::IsNullOrEmpty($FileName)) {
-              $FileName = [System.IO.Path]::GetRandomFileName()
-            }
-            $Path = Join-Path -Path "${env:Temp}" -ChildPath $FileName
+          if ([String]::IsNullOrEmpty($FileName)) {
+            $FileName = [System.IO.Path]::GetRandomFileName()
           }
+          $Path = Join-Path -Path "${env:Temp}" -ChildPath $FileName
 
           Write-Host "Downloading package from $URL to $Path..."
 
-          $Interval = 30
           $StartTime = Get-Date
           do {
             try {
@@ -120,8 +117,8 @@ runs:
               throw "Package download failed after $Duration seconds"
             }
 
-            Write-Warning "Waiting $Interval seconds before retrying (retries remaining: $Retries)..."
-            Start-Sleep -Seconds $Interval
+            Write-Warning "Waiting $RetryInterval seconds before retrying (retries remaining: $($Retries - 1))..."
+            Start-Sleep -Seconds $RetryInterval
           } while (--$Retries -gt 0)
 
           return $Path
@@ -165,7 +162,7 @@ runs:
             $FilePath = $LocalPath
           } else {
             $FileName = [System.IO.Path]::GetFileName($URL)
-            $FilePath = Invoke-Download -URL $URL -Path "${env:Temp}\$FileName"
+            $FilePath = Invoke-Download -URL $URL
           }
 
           if ($ExpectedSHA256) {
@@ -217,9 +214,9 @@ runs:
         }
 
         if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
-          Invoke-Installation -FilePath "${{ inputs.release-asset-name }}" -ArgumentList ("-q")
+          Invoke-Installation -FilePath "${{ inputs.release-asset-name }}" -InstallArgs ("-q")
         } else {
-          Invoke-Installation -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -Name "installer.exe" -ArgumentList ("-q")
+          Invoke-Installation -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -Name "installer.exe" -InstallArgs ("-q")
         }
         Update-EnvironmentVariables
 
