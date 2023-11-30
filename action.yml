@@ -130,10 +130,10 @@ runs:
         function Verify-Checksum {
           Param
           (
-            [Parameter(Mandatory = $true)]
-            [String]$Actual,
-            [Parameter(Mandatory = $true)]
-            [String]$Expected
+            [Parameter(Mandatory)]
+            [String] $Actual,
+            [Parameter(Mandatory)]
+            [String] $Expected
           )
 
           Write-Verbose "Performing Checksum Verification"
