@@ -77,10 +77,147 @@ runs:
           }
         }
 
+        function Invoke-Download {
+          Param
+          (
+            [Parameter(Mandatory)]
+            [String] $URL,
+            [Alias("Destination")]
+            [Int] $Retries = 20,
+            [Int] $RetryInterval = 30
+          )
+
+          $InvalidCharacters = [IO.Path]::GetInvalidFileNameChars() -Join ''
+          $RE = "[{0}]" -f [RegEx]::Escape($InvalidCharacters)
+          $FileName = [IO.Path]::GetFileName($URL) -Replace $RE
+
+          if ([String]::IsNullOrEmpty($FileName)) {
+            $FileName = [System.IO.Path]::GetRandomFileName()
+          }
+          $Path = Join-Path -Path "${env:Temp}" -ChildPath $FileName
+
+          Write-Host "Downloading package from $URL to $Path..."
+
+          $StartTime = Get-Date
+          do {
+            try {
+              $AttemptStartTime = Get-Date
+              (New-Object System.Net.WebClient).DownloadFile($URL, $Path)
+              $AttemptDuration = [math]::Round(($(Get-Date) - $AttemptStartTime).TotalSeconds, 2)
+              Write-Host "Package downloaded in $AttemptDuration seconds"
+              break
+            } catch {
+              $AttemptDuration = [math]::Round(($(Get-Date) - $AttemptStartTime).TotalSeconds, 2)
+              Write-Warning "Package download failed after $AttemptDuration seconds"
+              Write-Warning $_.Exception.Message
+            }
+
+            if ($Retries -eq 1) {
+              $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
+              throw "Package download failed after $Duration seconds"
+            }
+
+            Write-Warning "Waiting $RetryInterval seconds before retrying (retries remaining: $($Retries - 1))..."
+            Start-Sleep -Seconds $RetryInterval
+          } while (--$Retries -gt 0)
+
+          return $Path
+        }
+
+        function Verify-Checksum {
+          Param
+          (
+            [Parameter(Mandatory)]
+            [String] $Actual,
+            [Parameter(Mandatory)]
+            [String] $Expected
+          )
+
+          Write-Verbose "Performing Checksum Verification"
+          if ($Actual -eq $Expected) {
+            Write-Verbose "Checksum verification passed"
+          } else {
+            throw "Checksum verification failure (Actual: $Actual vs Expected: $Expected)"
+          }
+        }
+
+        function Invoke-Installer {
+          Param
+          (
+            [Parameter(Mandatory, ParameterSetName = "URL")]
+            [String] $URL,
+            [Parameter(Mandatory, ParameterSetName = "LocalPath")]
+            [String] $LocalPath,
+            [ValidateSet("MSI", "EXE")]
+            [String] $Type,
+            [String[]] $InstallArgs = $null, # Use default for installer format
+            [String[]] $ExtraInstallArgs = @(),
+            [String] $ExpectedSHA256
+          )
+
+          if ($PSCmdlet.ParameterSetName -eq "LocalPath") {
+            if (-not (Test-Path -Path $LocalPath)) {
+              throw "LocalPath parameter is specified, but the file does not exist"
+            }
+            $FilePath = $LocalPath
+          } else {
+            $FileName = [System.IO.Path]::GetFileName($URL)
+            $FilePath = Invoke-Download -URL $URL
+          }
+
+          if ($ExpectedSHA256) {
+            $Hash = (Get-FileHash -Path $FilePath -Algorithm SH256).Hash
+            Verify-Checksum -Actual $Hash -Expected $ExpectedSHA256
+          }
+
+          if (-not $Type) {
+            $Type = ([System.IO.Path]::GetExtension($FilePath)).Replace(".", "").ToUpper()
+          }
+
+          switch ($Type) {
+            "EXE" {
+              if (-not $InstallArgs) { $InstallArgs = @() }
+              $InstallArgs += $ExtraInstallArgs
+            }
+            "MSI" {
+              if (-not $InstallArgs) {
+                Write-Host "Using default MSI arguments: /i, /qn, /norestart"
+                $InstallArgs = @("/i", $FilePath, "/qn", "/norestart")
+              }
+
+              $InstallArgs += $ExtraInstallArgs
+              $FilePath = "msiexec.exe"
+            }
+            default {
+              throw "Unknown installer type (${Type}), please specify via `-Type` parameter"
+            }
+          }
+
+          $StartTime = Get-Date
+          Write-Host "Starting Install..."
+          try {
+            $Process = Start-Process -FilePath $FilePath -ArgumentList $InstallArgs -Wait -PassThru -Verb RunAs
+            $ExitCode = $Process.ExitCode
+            $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
+            switch ($ExitCode) {
+              0 { Write-Host "Installation successful in $Duration seconds" }
+              3010 { Write-Host "Installation successful in $Duration seconds; reboot required"}
+              default {
+                Write-Host "Installation process returned unexpected exit code: $ExitCode"
+                Write-Host "Time elapsed: $Duration seconds"
+                exit $ExitCode
+              }
+            }
+          } catch {
+            $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
+            Write-Host "Installation failed after $Duration seconds"
+          }
+        }
+
         if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
-          Install-Binary -FilePath "${{ inputs.release-asset-name }}" -ArgumentList ("-q")
+          Invoke-Installer -FilePath "${{ inputs.release-asset-name }}" -InstallArgs ("/quiet")
         } else {
-          Install-Binary -Url "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -Name "installer.exe" -ArgumentList ("-q")
+          Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("/quiet")
         }
         Update-EnvironmentVariables
 
