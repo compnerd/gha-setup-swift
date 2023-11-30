@@ -141,7 +141,7 @@ runs:
           }
         }
 
-        function Invoke-Installation {
+        function Invoke-Installer {
           Param
           (
             [Parameter(Mandatory, ParameterSetName = "URL")]
@@ -195,7 +195,7 @@ runs:
           $StartTime = Get-Date
           Write-Host "Starting Install..."
           try {
-            $Process = Start-Process -FilePath $FilePath -ArgumentList $InstallArgs -Wait -PassThru
+            $Process = Start-Process -FilePath $FilePath -ArgumentList $InstallArgs -Wait -PassThru -Verb RunAs
             $ExitCode = $Process.ExitCode
             $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
             switch ($ExitCode) {
@@ -214,9 +214,9 @@ runs:
         }
 
         if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
-          Invoke-Installation -FilePath "${{ inputs.release-asset-name }}" -InstallArgs ("-q")
+          Invoke-Installer -FilePath "${{ inputs.release-asset-name }}" -InstallArgs ("-q")
         } else {
-          Invoke-Installation -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("-q")
+          Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("-q")
         }
         Update-EnvironmentVariables
 
