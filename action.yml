@@ -68,9 +68,9 @@ runs:
         function Update-EnvironmentVariables {
           foreach ($level in "Machine", "User") {
             [Environment]::GetEnvironmentVariables($level).GetEnumerator() | % {
-              # For Path variables, append the new values, if they're not already in there
+              # For Path variables, prepend the new values, if they're not already in there
               if ($_.Name -Match 'Path$') {
-                $_.Value = ($((Get-Content "Env:$($_.Name)") + ";$($_.Value)") -Split ';' | Select -Unique) -Join ';'
+                $_.Value = ($("$($_.Value);" + (Get-Content "Env:$($_.Name)")) -Split ';' | Select -Unique) -Join ';'
               }
               $_
             } | Set-Content -Path { "Env:$($_.Name)" }
