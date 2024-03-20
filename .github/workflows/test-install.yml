@@ -25,5 +25,5 @@ jobs:
     - name: Check Swift version
       run: swift --version
 
-    - name: Smoke test Swift and SPM
-      run: swift package init && swift test
+    - name: Smoke test
+      run: swift test
