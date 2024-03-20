@@ -15,9 +15,10 @@ let package = Package(
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-          name: "gha-setup-swift", dependencies: ["CPlusPlusLibrary"]),
+          name: "gha-setup-swift", dependencies: ["CPlusPlusLibrary", "CLibrary"]),
 
-        .target(name: "CPlusPlusLibrary"),
+        .target(name: "CLibrary"),
+        .target(name: "CPlusPlusLibrary", dependencies: ["CLibrary"]),
 
         .testTarget(
             name: "gha-setup-swiftTests",
