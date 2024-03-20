@@ -53,6 +53,10 @@ runs:
           exit 1
         fi
 
+    - name: VS2022 Compatibility Setup
+      if: runner.os == 'Windows'
+      uses: compnerd/gha-setup-vsdevenv@a8b61f50b4ba55489b9ff4b1ccfbe65acb028b32 # v5
+
     - name: Fetch installer from Github release
       uses: dsaltares/fetch-gh-release-asset@a40c8b4a0471f9ab81bdf73a010f74cc51476ad4  # pinned commit for v1.1
       if: steps.validation.outputs.use_custom_url == 1
@@ -225,10 +229,6 @@ runs:
         echo "$env:Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
         Get-ChildItem Env: | % { echo "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
       shell: pwsh
-
-    - name: VS2022 Compatibility Setup
-      if: runner.os == 'Windows'
-      uses: compnerd/gha-setup-vsdevenv@a8b61f50b4ba55489b9ff4b1ccfbe65acb028b32 # v5
 
     - name: VS2022 Compatibility Installation
       if: runner.os == 'Windows'
