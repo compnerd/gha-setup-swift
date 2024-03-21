@@ -25,5 +25,7 @@ jobs:
     - name: Check Swift version
       run: swift --version
 
+    - uses: lukka/get-cmake@latest
+
     - name: Smoke test
-      run: cmake -GNinja -S .github/smoke-test -B .cmake-build . && cmake --build .cmake-build
+      run: cmake -GNinja -S .github/smoke-test -B .cmake-build && cmake --build .cmake-build
