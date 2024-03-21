@@ -255,7 +255,7 @@ runs:
             if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
               mv "${{ inputs.release-asset-name }}" swift-toolchain.tar.gz
             else
-              curl -sL https://download.swift.org/${{ inputs.branch }}/ubuntu${release/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${release}.tar.gz -o swift-toolchain.tar.gz
+              curl -sL https://download.swift.org/${{ inputs.branch }}/ubuntu${VERSION_ID/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${VERSION_ID}.tar.gz -o swift-toolchain.tar.gz
             fi
             tar zxf swift-toolchain.tar.gz -C ${HOME}
             rm -f swift-toolchain.tar.gz
