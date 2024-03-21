@@ -25,7 +25,9 @@ jobs:
     - name: Check Swift version
       run: swift --version
 
-    - uses: lukka/get-cmake@latest
+    - name: get macOS smoke test prerequisites
+      if: ${{ runner.os == 'macOS' }}
+      run: brew install ninja
 
     - name: Smoke test
       run: cmake -GNinja -S .github/smoke-test -B .cmake-build && cmake --build .cmake-build
