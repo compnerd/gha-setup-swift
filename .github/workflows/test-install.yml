@@ -26,4 +26,4 @@ jobs:
       run: swift --version
 
     - name: Smoke test
-      run: cmake -GNinja -B .build . && cmake --build .build
+      run: cmake -GNinja -S .github/smoke-test -B .cmake-build . && cmake --build .cmake-build

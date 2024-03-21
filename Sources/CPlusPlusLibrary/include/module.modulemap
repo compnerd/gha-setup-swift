@@ -1,4 +1,0 @@
-module CPlusPlusLibrary {
-  header "CPlusPlusLibrary.h"
-  export *
-}
