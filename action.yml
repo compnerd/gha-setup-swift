@@ -285,5 +285,5 @@ runs:
         installer -pkg swift-${{ inputs.tag }}-osx.pkg -target CurrentUserHomeDirectory
         rm -f swift-${{ inputs.tag }}-osx.pkg
 
-        echo "TOOLCHAINS=$(plutil -convert swift ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist -o - | grep 'let Info = ' | sed -Ee 's/.*"(.*)".*/\1/')" >> $GITHUB_ENV
+        echo "TOOLCHAINS=$(plutil -convert swift ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist -o - | grep 'let Info = ' | cut -f 2 -d '"')" >> $GITHUB_ENV
       shell: bash
