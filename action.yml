@@ -286,8 +286,10 @@ runs:
         rm -f swift-${{ inputs.tag }}-osx.pkg
 
         echo "-----------"
+        cat ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist
+        echo "-----------"
         plutil -convert swift ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist -o -
         echo "-----------"
 
-        echo "TOOLCHAINS=$(plutil -convert swift ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist -o - | grep 'let Info = ' | cut -f 2 -d '"')" >> $GITHUB_ENV
+        echo "TOOLCHAINS=$(plutil -convert swift ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist -o - | grep '"org.swift.' | cut -f 2 -d '"')" >> $GITHUB_ENV
       shell: bash
