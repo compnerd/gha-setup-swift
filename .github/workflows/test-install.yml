@@ -22,5 +22,12 @@ jobs:
         branch: development
         tag: DEVELOPMENT-SNAPSHOT-2023-05-20-a
 
-    - name: check swift version
+    - name: Check Swift version
       run: swift --version
+
+    - name: get macOS smoke test prerequisites
+      if: ${{ runner.os == 'macOS' }}
+      run: brew install ninja
+
+    - name: Smoke test
+      run: cmake -GNinja -S .github/smoke-test -B .cmake-build && cmake --build .cmake-build
