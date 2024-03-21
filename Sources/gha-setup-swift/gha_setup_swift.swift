@@ -1,5 +1,5 @@
-import CPlusPlusLibrary
+import Dependency
 
 public func fortyTwo() -> Int {
-  return Int(forty_two())
+  return forty() + 2
 }

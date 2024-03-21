@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.25)
+project(gha_setup_swift LANGUAGES Swift)
+add_library(Dependency Sources/Dependency/Dependency.swift)
+add_library(gha_setup_swift Sources/gha-setup-swift/gha_setup_swift.swift)
+target_link_libraries(gha_setup_swift PRIVATE Dependency)
