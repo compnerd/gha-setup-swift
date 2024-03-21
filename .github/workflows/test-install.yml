@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]   # ubuntu-latest is not working at the moment
+        os: [macos-latest, windows-latest, ubuntu-latest]
 
     name: Test Swift toolchain install on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
