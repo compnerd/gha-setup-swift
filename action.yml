@@ -53,14 +53,15 @@ runs:
           exit 1
         fi
 
-    - name: Fetch installer from Github release
-      uses: dsaltares/fetch-gh-release-asset@a40c8b4a0471f9ab81bdf73a010f74cc51476ad4  # pinned commit for v1.1
+    - name: Fetch installer from GitHub release
       if: steps.validation.outputs.use_custom_url == 1
-      with:
-        repo: '${{ inputs.github-repo }}'
-        version: 'tags/${{ inputs.release-tag-name }}'
-        file: '${{ inputs.release-asset-name }}'
-        token: ${{ inputs.github-token }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        gh release download "${{ inputs.release-tag-name }}" \
+          --repo "${{ inputs.github-repo }}" \
+          --pattern "${{ inputs.release-asset-name }}"
 
     - name: Install Swift ${{ inputs.tag }}
       if: runner.os == 'Windows'
