@@ -1,6 +1,8 @@
 name: Test install
 
 on:
+  push:
+    branches: ["**"]
   workflow_dispatch:
 
 jobs:
@@ -30,3 +32,10 @@ jobs:
     - name: check swift version
       run: swift --version && swift --version | grep -q 'version ${{ matrix.expected-version }} '
       shell: bash
+
+    - name: get macOS smoke test prerequisites
+      if: ${{ runner.os == 'macOS' }}
+      run: brew install ninja
+
+    - name: Smoke test
+      run: cmake -GNinja -S .github/smoke-test -B .cmake-build && cmake --build .cmake-build
