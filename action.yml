@@ -227,12 +227,36 @@ runs:
         Get-ChildItem Env: | % { echo "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
       shell: pwsh
 
-    - name: VS2022 Compatibility Setup
+    - name: Check Swift version
       if: runner.os == 'Windows'
+      id: swift-version
+      shell: pwsh
+      run: |
+        $SwiftVersionOutput=$(swift --version)
+        if ("$SwiftVersionOutput" -match "[\d]+(\.[\d]+){0,2}") {
+          $SwiftSemVer=$Matches[0]
+
+          # Ensure we have at least MAJOR.MINOR or [System.Version] won't parse.
+          if (-Not ($SwiftSemVer -like "*.*")) {
+            $SwiftSemVer += ".0"
+          }
+
+          $SwiftVersion=[System.Version]($SwiftSemVer)
+
+          # If the toolchain is newer than 5.9 we don't need to ensure compatibility with VS2022.
+          if ($SwiftVersion -gt [System.Version]"5.9") {
+            "is_newer_than_5_9='true'" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "is_newer_than_5_9='false'" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+        }
+
+    - name: VS2022 Compatibility Setup
+      if: runner.os == 'Windows' && steps.swift-version.outputs.is_newer_than_5_9 == 'false'
       uses: compnerd/gha-setup-vsdevenv@f1ba60d553a3216ce1b89abe0201213536bc7557 # v6
 
     - name: VS2022 Compatibility Installation
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && steps.swift-version.outputs.is_newer_than_5_9 == 'false'
       run: |
         Copy-Item "$env:SDKROOT\usr\share\ucrt.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\module.modulemap"
         if (Test-Path -Path "$env:SDKROOT\usr\share\vcruntime.modulemap") {
