@@ -211,7 +211,8 @@ runs:
             }
           } catch {
             $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
-            Write-Host "Installation failed after $Duration seconds"
+            Write-Host "Installation failed after $Duration seconds: $_"
+            exit 1
           }
         }
 
