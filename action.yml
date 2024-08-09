@@ -24,6 +24,12 @@ inputs:
     description: 'Optional Github token for fetching a release. Only specify when using custom toolchains from non-public Github releases.'
     required: false
 
+  # common
+  installer-args:
+    description: 'Additional arguments to pass to the installer, space-delimited (double quotes are not supported)'
+    required: false
+    default: ''
+
 runs:
   using: 'composite'
 
@@ -193,6 +199,8 @@ runs:
               throw "Unknown installer type (${Type}), please specify via `-Type` parameter"
             }
           }
+
+          $InstallArgs += "${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
           $StartTime = Get-Date
           Write-Host "Starting Install..."
