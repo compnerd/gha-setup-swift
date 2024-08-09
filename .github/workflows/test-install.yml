@@ -36,3 +36,27 @@ jobs:
 
     - name: Smoke test
       run: cmake -GNinja -S .github/smoke-test -B .cmake-build && cmake --build .cmake-build
+
+  windows-installer-args:
+    name: Test installer arguments on Windows
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: compnerd/gha-setup-vsdevenv@main
+
+    - name: Install Swift without the IDE component
+      uses: ./
+      with:
+        branch: development
+        tag: DEVELOPMENT-SNAPSHOT-2023-05-20-a
+        installer-args: OptionsInstallIde=0 
+
+    - name: Assert that we find swiftc.exe
+      run: where.exe swiftc.exe
+
+    - name: Assert that we don't find sourcekit-lsp.exe
+      shell: pwsh
+      run: |
+        where.exe sourcekit-lsp.exe
+        if ($LastExitCode -eq 0) { exit 1 }
