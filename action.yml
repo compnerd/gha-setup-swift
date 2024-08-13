@@ -203,6 +203,7 @@ runs:
           $InstallArgs += "${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
           $StartTime = Get-Date
+          Write-Host "Installer args: $($InstallArgs -join ' ')"
           Write-Host "Starting Install..."
           try {
             $Process = Start-Process -FilePath $FilePath -ArgumentList $InstallArgs -Wait -PassThru -Verb RunAs
