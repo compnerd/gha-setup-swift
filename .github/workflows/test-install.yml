@@ -53,7 +53,7 @@ jobs:
       uses: ./
       with:
         branch: development
-        tag: DEVELOPMENT-SNAPSHOT-2023-05-20-a
+        tag: DEVELOPMENT-SNAPSHOT-2024-08-07-a # This installer version supports the argument below
         installer-args: OptionsInstallIde=0 
 
     - name: Assert that we find swiftc.exe
