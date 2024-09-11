@@ -6,6 +6,12 @@ Automates installation of the Swift toolchain for Windows hosts on GitHub Action
 ## Usage
 
 > **NOTE:** Only Swift 5.4.2+ is supported
+> 
+> **NOTE:** This action may require a prior
+> [compnerd/gha-setup-vsdevenv](https://github.com/compnerd/gha-setup-vsdevenv) step if
+> your build requires the availability of tools from the MSVC toolset such as `link.exe`.
+> The usual symptom of failure to add that step is a confusing message from the wrong
+> `link.exe` executable.
 
 * Sample workflow using official Swift releases
 
