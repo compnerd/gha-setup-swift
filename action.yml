@@ -234,7 +234,7 @@ runs:
         } else {
           if ("${{ inputs.build_arch }}" -eq "amd64") {
             Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("/quiet")
-          else {
+          } else {
             Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10-${{ inputs.build_arch }}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10-${{ inputs.build_arch }}.exe" -InstallArgs ("/quiet")
           }
         }
