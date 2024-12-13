@@ -9,6 +9,10 @@ inputs:
   tag:
     description: 'Tag for swift.org builds. Only specifiy when using official Swift toolchains from swift.org'
     required: false
+  build_arch:
+    description: 'Build architecture (amd64 or arm64). Only specifiy when using official Swift toolchains from swift.org'
+    default: 'amd64'
+    required: true
 
   # for custom toolchains:
   github-repo:
@@ -228,7 +232,11 @@ runs:
         if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
           Invoke-Installer -LocalPath "${{ inputs.release-asset-name }}" -InstallArgs ("/quiet")
         } else {
-          Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("/quiet")
+          if ("${{ input.build_arch }}" -eq "amd64") {
+            Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("/quiet")
+          else {
+            Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10-${{ input.build_arch }}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10-${{ input.build_arch }}.exe" -InstallArgs ("/quiet")
+          }
         }
         Update-EnvironmentVariables
 
