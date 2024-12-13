@@ -5,7 +5,8 @@ Automates installation of the Swift toolchain for Windows hosts on GitHub Action
 
 ## Usage
 
-> **NOTE:** Only Swift 5.4.2+ is supported
+> [!NOTE]
+> Winodws requires Swift 5.4.2+
 
 * Sample workflow using official Swift releases
 
