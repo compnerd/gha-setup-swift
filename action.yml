@@ -232,10 +232,10 @@ runs:
         if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
           Invoke-Installer -LocalPath "${{ inputs.release-asset-name }}" -InstallArgs ("/quiet")
         } else {
-          if ("${{ input.build_arch }}" -eq "amd64") {
+          if ("${{ inputs.build_arch }}" -eq "amd64") {
             Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("/quiet")
           else {
-            Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10-${{ input.build_arch }}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10-${{ input.build_arch }}.exe" -InstallArgs ("/quiet")
+            Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10-${{ inputs.build_arch }}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10-${{ inputs.build_arch }}.exe" -InstallArgs ("/quiet")
           }
         }
         Update-EnvironmentVariables
