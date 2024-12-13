@@ -34,9 +34,13 @@ jobs:
     - name: Check Swift version
       run: swift --version
 
-    - name: get macOS smoke test prerequisites
+    - name: Install pre-requisites for smoke test
       if: ${{ runner.os == 'macOS' }}
       run: brew install ninja
+
+    - name: Install pre-requisites for smoke test
+      if: ${{ runner.os == 'Linux' }}
+      run: sudo apt-get update && sudo apt-get install -y ninja-build
 
     - name: Smoke test
       run: cmake -GNinja -S .github/smoke-test -B .cmake-build && cmake --build .cmake-build
