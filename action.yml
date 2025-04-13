@@ -52,8 +52,7 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
-        gh release download --skip-existing "${{ inputs.release-tag-name }}" --repo "${{ inputs.github-repo }}" --pattern "${{ inputs.release-asset-name }}" --dir ${env:Temp}
-        installer-path=[IO.Path]::Combine(${env:Temp}, ${{ inputs.release-asset-name }}) | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        gh release download "${{ inputs.release-tag-name }}" --skip-existing --repo "${{ inputs.github-repo }}" --pattern "${{ inputs.release-asset-name }}" --output $([IO.Path]::Combine(${env:Temp}, "installer.exe"))
       shell: pwsh
 
     - name: Fetch installer from swift.org
@@ -66,18 +65,11 @@ runs:
           "https://download.swift.org/${{ inputs.branch }}/windows10-${{ inputs.build_arch }}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10-${{ inputs.build_arch }}.exe"
         }
 
-        $InvalidCharacters = [IO.Path]::GetInvalidFileNameChars() -Join ''
-        $RE = "[{0}]" -f [RegEx]::Escape($InvalidCharacters)
-        $FileName = [IO.Path]::GetFileName($URL) -Replace $RE
-
-        if ([String]::IsNullOrEmpty($FileName)) {
-          $FileName = [IO.Path]::GetRandomFileName()
-        }
-        $Path = [IO.Path]::Combine(${env:Temp}, $FileName)
-
-        Write-Host "Downloading package from $URL to $Path..."
+        $Path = [IO.Path]::Combine(${env:Temp}, "installer.exe")
         $Retries = 3
         $RetryInterval = 30
+
+        Write-Host "Downloading package from $URL to $Path..."
         do {
           try {
             $AttemptStartTime = Get-Date
@@ -99,24 +91,25 @@ runs:
           Write-Host "::warning::Waiting $RetryInterval seconds before retrying (retries remaining: $($Retries - 1))..."
           Start-Sleep -Seconds $RetryInterval
         } while (--$Retries -gt 0)
-
-        Write-Output installer-path=$Path | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
       shell: pwsh
 
     - name: Install Swift ${{ inputs.tag }}
       if: runner.os == 'Windows'
       run: |
+        $Installer = [IO.Path]::Combine(${env:Temp}, "installer.exe")
         $Arguments = "${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
-        $Installer = "${{ steps.fetch-installer-0.outputs.installer-path || steps.fetch-installer-1.outputs.installer-path }}"
 
-        $StartTime = Get-Date
+        Write-Host "::debug::Installer: $Installer"
         Write-Host "::debug::Installer Arguments: $($Arguments -join ' ')"
         Write-Host "::debug::Starting Install ..."
+        $StartTime = Get-Date
         try {
-          $Process = Start-Process -FilePath "$Installer" -ArgumentList $Arguments -Wait -PassThru -Verb RunAs
+          $Process = Start-Process -FilePath $Installer -ArgumentList $Arguments -Wait -PassThru -Verb RunAs
           $ExitCode = $Process.ExitCode
-          $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
+          $StopTime = Get-Date
+
+          $Duration = [math]::Round(($StopTime - $StartTime).TotalSeconds, 2)
           switch ($ExitCode) {
             0 { Write-Host "::debug::Installation successful in $Duration seconds" }
             3010 { Write-Host "::notice::Installation successful in $Duration seconds; reboot required"}
