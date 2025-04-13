@@ -64,81 +64,50 @@ runs:
         }
 
         $Path = [IO.Path]::Combine(${env:Temp}, "installer.exe")
-        $Retries = 3
-        $RetryInterval = 30
 
         Write-Host "Downloading package from $URL to $Path..."
-        do {
-          try {
-            $AttemptStartTime = Get-Date
-            (New-Object System.Net.WebClient).DownloadFile($URL, $Path)
-            $AttemptDuration = [math]::Round(($(Get-Date) - $AttemptStartTime).TotalSeconds, 2)
-            Write-Host "::debug::Package downloaded in $AttemptDuration seconds"
-            break
-          } catch {
-            $AttemptDuration = [math]::Round(($(Get-Date) - $AttemptStartTime).TotalSeconds, 2)
-            Write-Host "::error::Package download failed after $AttemptDuration seconds"
-            Write-Host "::error::$($_.Exception.Message)"
-          }
-
-          if ($Retries -eq 1) {
-            $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
-            throw "Package download failed after $Duration seconds"
-          }
-
-          Write-Host "::warning::Waiting $RetryInterval seconds before retrying (retries remaining: $($Retries - 1))..."
-          Start-Sleep -Seconds $RetryInterval
-        } while (--$Retries -gt 0)
+        try {
+          (New-Object System.Net.WebClient).DownloadFile($URL, $Path)
+        } catch {
+          Write-Host "::error::Package download failed: $(_.Exception.Message)"
+        }
       shell: pwsh
 
     - name: Install Swift ${{ inputs.tag }}
       if: runner.os == 'Windows'
       run: |
-        function Update-EnvironmentVariables {
-          foreach ($level in "Machine", "User") {
-            [Environment]::GetEnvironmentVariables($level).GetEnumerator() | % {
-              # For Path variables, append the new values, if they're not already in there
-              if ($_.Name -Match 'Path$') {
-                $_.Value = ($((Get-Content "Env:$($_.Name)") + ";$($_.Value)") -Split ';' | Select -Unique) -Join ';'
-              }
-              $_
-            } | Set-Content -Path { "Env:$($_.Name)" }
-          }
-        }
-
         $Installer = [IO.Path]::Combine(${env:Temp}, "installer.exe")
         $Arguments = "/quiet ${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
-        Write-Host "::debug::Installer: $Installer"
         Write-Host "::debug::Installer Arguments: $($Arguments -join ' ')"
-        Write-Host "::debug::Starting Install ..."
-        $StartTime = Get-Date
         try {
           $Process = Start-Process -FilePath $Installer -ArgumentList $Arguments -Wait -PassThru -Verb RunAs
-          $ExitCode = $Process.ExitCode
-          $StopTime = Get-Date
-
-          $Duration = [math]::Round(($StopTime - $StartTime).TotalSeconds, 2)
-          switch ($ExitCode) {
-            0 { Write-Host "::debug::Installation successful in $Duration seconds" }
-            3010 { Write-Host "::notice::Installation successful in $Duration seconds; reboot required"}
+          switch ($Process.ExitCode) {
+            0 { Write-Host "::debug::Installation successful" }
+            3010 { Write-Host "::notice::Installation successful; reboot required"}
             default {
-              Write-Host "::error::Installation process returned unexpected exit code: $ExitCode"
-              Write-Host "::debug::Time elapsed: $Duration seconds"
-              exit $ExitCode
+              Write-Host "::error::Installation process returned unexpected exit code: $_"
+              exit $_
             }
           }
         } catch {
-          $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
-          Write-Host "::error::Installation failed after $Duration seconds: $_"
+          Write-Host "::error::Installation failed $_"
           exit 1
         }
 
-        Update-EnvironmentVariables
+        foreach ($level in "Machine", "User") {
+          [Environment]::GetEnvironmentVariables($level).GetEnumerator() | ForEach-Object {
+            # For Path variables, append the new values, if they're not already in there
+            if ($_.Name -eq 'Path') {
+              $_.Value = ("${env:Path};$($_.Value)") -Split ';' | Select -Unique) -Join ';'
+            }
+            $_
+          } | Set-Content -Path { "Env:$($_.Name)" }
+        }
 
         # Reset Path and environment
-        Write-Output "$env:Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
-        Get-ChildItem Env: | % { echo "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
+        Write-Output "$env:Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding UTF8
+        Get-ChildItem Env: | ForEach-Object { echo "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding UTF8 }
       shell: pwsh
 
     - name: Check Swift version
@@ -146,24 +115,9 @@ runs:
       id: swift-version
       run: |
         & swift --version
-        $SwiftVersionOutput=$(swift --version)
-        if ("$SwiftVersionOutput" -match "[\d]+(\.[\d]+){0,2}") {
-          $SwiftSemVer=$Matches[0]
-
-          # Ensure we have at least MAJOR.MINOR or [System.Version] won't parse.
-          if (-Not ($SwiftSemVer -like "*.*")) {
-            $SwiftSemVer += ".0"
-          }
-
-          $SwiftVersion=[System.Version]($SwiftSemVer)
-
-          # If the toolchain is newer than 5.9 we don't need to ensure compatibility with VS2022.
-          if ($SwiftVersion -gt [System.Version]"5.9") {
-            "is_newer_than_5_9='true'" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
-          } else {
-            "is_newer_than_5_9='false'" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
-          }
-        }
+        $Matches = $(swift --version) -match "\d+.\d+\(.\d+)?"
+        $SwiftVersion = [System.Version]($Matches[0])
+        Write-Output is_newer_than_5_9=$($SwiftVersion -gt [System.Version]"5.9") | Out-File $env:GITHUB_OUTPUT -Append -Encoding UTF8
       shell: pwsh
 
     - name: VS2022 Compatibility Setup
