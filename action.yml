@@ -125,10 +125,10 @@ runs:
         }
 
         foreach ($level in "Machine", "User") {
-          [Environment]::GetEnvironmentVariables($level).GetEnumerator() | % {
+          [Environment]::GetEnvironmentVariables($level).GetEnumerator() | ForEach-Object {
             # For Path variables, append the new values, if they're not already in there
-            if ($_.Name -Match 'Path$') {
-              $_.Value = ($((Get-Content "Env:$($_.Name)") + ";$($_.Value)") -Split ';' | Select -Unique) -Join ';'
+            if ($_.Name -eq 'Path') {
+              $_.Value = ("${env:Path};$($_.Value)" -Split ';' | Select -Unique) -Join ';'
             }
             $_
           } | Set-Content -Path { "Env:$($_.Name)" }
