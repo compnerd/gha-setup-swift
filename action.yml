@@ -97,8 +97,7 @@ runs:
       if: runner.os == 'Windows'
       run: |
         $Installer = [IO.Path]::Combine(${env:Temp}, "installer.exe")
-        $Arguments = "${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
-
+        $Arguments = "/quiet ${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
         Write-Host "::debug::Installer: $Installer"
         Write-Host "::debug::Installer Arguments: $($Arguments -join ' ')"
