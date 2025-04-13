@@ -188,7 +188,7 @@ runs:
         case ${ID} in
         ubuntu)
           case ${VERSION_ID} in
-          16.04|18.04|20.04|22.04)
+          16.04|18.04|20.04|22.04|24.04)
             if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
               mv "${{ inputs.release-asset-name }}" swift-toolchain.tar.gz
             else
