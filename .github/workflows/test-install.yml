@@ -29,7 +29,7 @@ jobs:
       uses: ./
       with:
         branch: development
-        tag: DEVELOPMENT-SNAPSHOT-2023-05-20-a
+        tag: DEVELOPMENT-SNAPSHOT-2025-04-03-a
 
     - name: Check Swift version
       run: swift --version
@@ -57,8 +57,8 @@ jobs:
       uses: ./
       with:
         branch: development
-        tag: DEVELOPMENT-SNAPSHOT-2024-08-07-a # This installer version supports the argument below
-        installer-args: OptionsInstallIde=0 
+        tag: DEVELOPMENT-SNAPSHOT-2025-04-03-a
+        installer-args: OptionsInstallIDE=0 
 
     - name: Assert that we find swiftc.exe
       run: where.exe swiftc.exe
