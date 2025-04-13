@@ -43,7 +43,9 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y ninja-build
 
     - name: Smoke test
-      run: cmake -GNinja -S .github/smoke-test -B .cmake-build && cmake --build .cmake-build
+      run: |
+        cmake -B build -G Ninja -S .github/smoke-test
+        cmake --build build
 
   windows-installer-args:
     name: Test installer arguments on Windows
@@ -61,10 +63,9 @@ jobs:
         installer-args: OptionsInstallIDE=0 
 
     - name: Assert that we find swiftc.exe
-      run: where.exe swiftc.exe
+      run: Get-Command swiftc.exe
 
     - name: Assert that we don't find sourcekit-lsp.exe
       shell: pwsh
       run: |
-        where.exe sourcekit-lsp.exe
-        if ($LastExitCode -eq 0) { exit 1 }
+        -not (Get-Command sourcekit-lsp.exe -ErrorAction SilebtlyContinue)
