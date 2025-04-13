@@ -145,6 +145,7 @@ runs:
       if: runner.os == 'Windows'
       id: swift-version
       run: |
+        & swift --version
         $SwiftVersionOutput=$(swift --version)
         if ("$SwiftVersionOutput" -match "[\d]+(\.[\d]+){0,2}") {
           $SwiftSemVer=$Matches[0]
