@@ -58,7 +58,7 @@ runs:
 
     - name: Fetch installer from swift.org
       id: fetch-installer-1
-      if: inputs.source == 'swift.org'
+      if: ${{ inputs.source }} == 'swift.org'
       run: |
         $URL = if ("${{ inputs.build_arch }}" -eq "amd64") {
           "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe"
