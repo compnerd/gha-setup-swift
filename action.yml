@@ -45,7 +45,7 @@ inputs:
 
 runs:
   using: 'composite'
-
+  steps:
     - name: Fetch installer from GitHub release
       id: fetch-installer
       if: inputs.source == 'custom'
