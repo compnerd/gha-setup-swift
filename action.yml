@@ -118,10 +118,11 @@ runs:
       if: runner.os == 'Windows'
       id: swift-version
       run: |
-        & swift --version
-        $Matches = $(swift --version) -match "\d+.\d+\(.\d+)?"
-        $SwiftVersion = [System.Version]($Matches[0])
-        Write-Output is_newer_than_5_9=$($SwiftVersion -gt [System.Version]"5.9") | Out-File $env:GITHUB_OUTPUT -Append -Encoding UTF8
+        $Output = swift --version
+        if ($Output -match "\d+.\d+\(.\d+)?") {
+          $SwiftVersion = [System.Version]($Matches[0])
+          Write-Output is_newer_than_5_9=$($SwiftVersion -gt [System.Version]"5.9") | Out-File $env:GITHUB_OUTPUT -Append -Encoding UTF8
+        }
       shell: pwsh
 
     - name: VS2022 Compatibility Setup
