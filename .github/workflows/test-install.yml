@@ -68,4 +68,4 @@ jobs:
     - name: Assert that we don't find sourcekit-lsp.exe
       shell: pwsh
       run: |
-        -not (Get-Command sourcekit-lsp.exe -ErrorAction SilebtlyContinue)
+        -not (Get-Command sourcekit-lsp.exe -ErrorAction SilentlyContinue)
