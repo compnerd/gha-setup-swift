@@ -54,6 +54,7 @@ runs:
       run: |
         gh release download --skip-existing "${{ inputs.release-tag-name }}" --repo "${{ inputs.github-repo }}" --pattern "${{ inputs.release-asset-name }}" --dir ${env:Temp}
         installer-path=[IO.Path]::Combine(${env:Temp}, ${{ inputs.release-asset-name }}) | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      shell: pwsh
 
     - name: Fetch installer from swift.org
       id: fetch-installer
@@ -141,11 +142,11 @@ runs:
         # Reset Path and environment
         echo "$env:Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
         Get-ChildItem Env: | % { echo "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
+      shell: pwsh
 
     - name: Check Swift version
       if: runner.os == 'Windows'
       id: swift-version
-      shell: pwsh
       run: |
         $SwiftVersionOutput=$(swift --version)
         if ("$SwiftVersionOutput" -match "[\d]+(\.[\d]+){0,2}") {
@@ -165,6 +166,7 @@ runs:
             "is_newer_than_5_9='false'" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
           }
         }
+      shell: pwsh
 
     - name: VS2022 Compatibility Setup
       if: runner.os == 'Windows' && steps.swift-version.outputs.is_newer_than_5_9 == 'false'
