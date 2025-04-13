@@ -47,7 +47,7 @@ runs:
   using: 'composite'
   steps:
     - name: Fetch installer from GitHub release
-      id: fetch-installer
+      id: fetch-installer-0
       if: inputs.source == 'custom'
       env:
         GH_TOKEN: ${{ inputs.github-token }}
@@ -57,7 +57,7 @@ runs:
       shell: pwsh
 
     - name: Fetch installer from swift.org
-      id: fetch-installer
+      id: fetch-installer-1
       if: inputs.source == 'swift.org'
       run: |
         $URL = if ("${{ inputs.build_arch }}" -eq "amd64") {
@@ -107,11 +107,13 @@ runs:
       run: |
         $Arguments = "${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
+        $Installer = ${{ steps.fetch-installer-0.outputs.installer-path || steps.fetch-installer-1.outputs.installer-path }}
+
         $StartTime = Get-Date
         Write-Host "Installer Arguments: $($Arguments -join ' ')"
         Write-Host "Starting Install..."
         try {
-          $Process = Start-Process -FilePath "${{ steps.fetch-installer.outputs.installer-path }}" -ArgumentList $Arguments -Wait -PassThru -Verb RunAs
+          $Process = Start-Process -FilePath $Installer -ArgumentList $Arguments -Wait -PassThru -Verb RunAs
           $ExitCode = $Process.ExitCode
           $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
           switch ($ExitCode) {
