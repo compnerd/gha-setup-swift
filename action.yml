@@ -55,7 +55,7 @@ runs:
       shell: pwsh
 
     - name: Fetch installer from swift.org
-      if: ${{ inputs.source }} == 'swift.org'
+      if: runner.os == 'Windows' && ${{ inputs.source }} == 'swift.org'
       run: |
         $URL = if ("${{ inputs.build_arch }}" -eq "amd64") {
           "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe"
@@ -119,8 +119,9 @@ runs:
       id: swift-version
       run: |
         $Output = swift --version
-        if ($Output -match "\d+.\d+\(.\d+)?") {
-          $SwiftVersion = [System.Version]($Matches[0])
+        $Match = ([regex]"\d+.\d+(.\d+)?").Match($Output)
+        if ($Match.Success) {
+          $SwiftVersion = [System.Version]($Match.Groups[0].Value)
           Write-Output is_newer_than_5_9=$($SwiftVersion -gt [System.Version]"5.9") | Out-File $env:GITHUB_OUTPUT -Append -Encoding UTF8
         }
       shell: pwsh
