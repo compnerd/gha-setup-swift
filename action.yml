@@ -2,6 +2,15 @@ name: Install Swift
 description: Install Swift Release
 
 inputs:
+  source:
+    description: "Where to source the Swift installer. Specify either 'swift.org' or 'custom' (Github release)"
+    required: true
+    default: 'swift.org'
+    type: choice
+    options:
+      - swift.org
+      - custom
+
   # for swift.org toolchains:
   branch:
     description: 'Branch for swift.org builds. Only specifiy when using official Swift toolchains from swift.org'
@@ -36,238 +45,82 @@ inputs:
 
 runs:
   using: 'composite'
-
   steps:
-    - name: Validate inputs
-      id: validation
-      shell: bash
-      run: |
-        if [[ -n "${{ inputs.github-repo }}" && -n "${{ inputs.release-tag-name }}" && -n "${{ inputs.release-asset-name }}" ]]; then
-          if [[ "${{ runner.os }}" == "Linux" && "${{ inputs.release-asset-name }}" != *.tar.gz ]]; then
-            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.tar.gz' file on Linux platforms."
-            exit 1
-          elif [[ "${{ runner.os }}" == "macOS" && "${{ inputs.release-asset-name }}" != *.pkg ]]; then
-            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.pkg' file on MacOS platforms."
-            exit 1
-          elif [[ "${{ runner.os }}" == "Windows" && "${{ inputs.release-asset-name }}" != *.exe ]]; then
-            echo >&2 "::error::inputs Invalid action inputs: release-asset-name has to be a '*.exe' file on Windows platforms."
-            exit 1
-          fi
-          echo "use_custom_url=1" >> $GITHUB_OUTPUT
-        elif [[ -n "${{ inputs.branch }}" && -n "${{ inputs.tag }}" ]]; then
-          echo "use_custom_url=0" >> $GITHUB_OUTPUT
-        else
-          echo >&2 "::error::inputs Invalid action inputs"
-          echo >&2 "::error::  for a custom Swift toolchain, specify github-repo, release-tag-name and release-asset-name"
-          echo >&2 "::error::  for the official swift.org toolchain, specify only branch and tag"
-          exit 1
-        fi
-
     - name: Fetch installer from GitHub release
-      if: steps.validation.outputs.use_custom_url == 1
-      shell: bash
+      if: inputs.source == 'custom'
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
-        gh release download "${{ inputs.release-tag-name }}" \
-          --repo "${{ inputs.github-repo }}" \
-          --pattern "${{ inputs.release-asset-name }}"
+        gh release download "${{ inputs.release-tag-name }}" --skip-existing --repo "${{ inputs.github-repo }}" --pattern "${{ inputs.release-asset-name }}" --output $([IO.Path]::Combine(${env:Temp}, "installer.exe"))
+      shell: pwsh
+
+    - name: Fetch installer from swift.org
+      if: runner.os == 'Windows' && inputs.source == 'swift.org'
+      run: |
+        $URL = if ("${{ inputs.build_arch }}" -eq "amd64") {
+          "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe"
+        } else {
+          "https://download.swift.org/${{ inputs.branch }}/windows10-${{ inputs.build_arch }}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10-${{ inputs.build_arch }}.exe"
+        }
+
+        $Path = [IO.Path]::Combine(${env:Temp}, "installer.exe")
+
+        Write-Host "Downloading package from $URL to $Path..."
+        try {
+          (New-Object System.Net.WebClient).DownloadFile($URL, $Path)
+        } catch {
+          Write-Host "::error::Package download failed: $($_.Exception.Message)"
+        }
+      shell: pwsh
 
     - name: Install Swift ${{ inputs.tag }}
       if: runner.os == 'Windows'
       run: |
-        function Update-EnvironmentVariables {
-          foreach ($level in "Machine", "User") {
-            [Environment]::GetEnvironmentVariables($level).GetEnumerator() | % {
-              # For Path variables, append the new values, if they're not already in there
-              if ($_.Name -Match 'Path$') {
-                $_.Value = ($((Get-Content "Env:$($_.Name)") + ";$($_.Value)") -Split ';' | Select -Unique) -Join ';'
-              }
-              $_
-            } | Set-Content -Path { "Env:$($_.Name)" }
-          }
-        }
+        $Installer = [IO.Path]::Combine(${env:Temp}, "installer.exe")
+        $Arguments = "/quiet ${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
-        function Invoke-Download {
-          Param
-          (
-            [Parameter(Mandatory)]
-            [String] $URL,
-            [Alias("Destination")]
-            [Int] $Retries = 20,
-            [Int] $RetryInterval = 30
-          )
-
-          $InvalidCharacters = [IO.Path]::GetInvalidFileNameChars() -Join ''
-          $RE = "[{0}]" -f [RegEx]::Escape($InvalidCharacters)
-          $FileName = [IO.Path]::GetFileName($URL) -Replace $RE
-
-          if ([String]::IsNullOrEmpty($FileName)) {
-            $FileName = [System.IO.Path]::GetRandomFileName()
-          }
-          $Path = Join-Path -Path "${env:Temp}" -ChildPath $FileName
-
-          Write-Host "Downloading package from $URL to $Path..."
-
-          $StartTime = Get-Date
-          do {
-            try {
-              $AttemptStartTime = Get-Date
-              (New-Object System.Net.WebClient).DownloadFile($URL, $Path)
-              $AttemptDuration = [math]::Round(($(Get-Date) - $AttemptStartTime).TotalSeconds, 2)
-              Write-Host "Package downloaded in $AttemptDuration seconds"
-              break
-            } catch {
-              $AttemptDuration = [math]::Round(($(Get-Date) - $AttemptStartTime).TotalSeconds, 2)
-              Write-Warning "Package download failed after $AttemptDuration seconds"
-              Write-Warning $_.Exception.Message
-            }
-
-            if ($Retries -eq 1) {
-              $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
-              throw "Package download failed after $Duration seconds"
-            }
-
-            Write-Warning "Waiting $RetryInterval seconds before retrying (retries remaining: $($Retries - 1))..."
-            Start-Sleep -Seconds $RetryInterval
-          } while (--$Retries -gt 0)
-
-          return $Path
-        }
-
-        function Verify-Checksum {
-          Param
-          (
-            [Parameter(Mandatory)]
-            [String] $Actual,
-            [Parameter(Mandatory)]
-            [String] $Expected
-          )
-
-          Write-Verbose "Performing Checksum Verification"
-          if ($Actual -eq $Expected) {
-            Write-Verbose "Checksum verification passed"
-          } else {
-            throw "Checksum verification failure (Actual: $Actual vs Expected: $Expected)"
-          }
-        }
-
-        function Invoke-Installer {
-          Param
-          (
-            [Parameter(Mandatory, ParameterSetName = "URL")]
-            [String] $URL,
-            [Parameter(Mandatory, ParameterSetName = "LocalPath")]
-            [String] $LocalPath,
-            [ValidateSet("MSI", "EXE")]
-            [String] $Type,
-            [String[]] $InstallArgs = $null, # Use default for installer format
-            [String[]] $ExtraInstallArgs = @(),
-            [String] $ExpectedSHA256
-          )
-
-          if ($PSCmdlet.ParameterSetName -eq "LocalPath") {
-            if (-not (Test-Path -Path $LocalPath)) {
-              throw "LocalPath parameter is specified, but the file does not exist"
-            }
-            $FilePath = $LocalPath
-          } else {
-            $FileName = [System.IO.Path]::GetFileName($URL)
-            $FilePath = Invoke-Download -URL $URL
-          }
-
-          if ($ExpectedSHA256) {
-            $Hash = (Get-FileHash -Path $FilePath -Algorithm SH256).Hash
-            Verify-Checksum -Actual $Hash -Expected $ExpectedSHA256
-          }
-
-          if (-not $Type) {
-            $Type = ([System.IO.Path]::GetExtension($FilePath)).Replace(".", "").ToUpper()
-          }
-
-          switch ($Type) {
-            "EXE" {
-              if (-not $InstallArgs) { $InstallArgs = @() }
-              $InstallArgs += $ExtraInstallArgs
-            }
-            "MSI" {
-              if (-not $InstallArgs) {
-                Write-Host "Using default MSI arguments: /i, /qn, /norestart"
-                $InstallArgs = @("/i", $FilePath, "/qn", "/norestart")
-              }
-
-              $InstallArgs += $ExtraInstallArgs
-              $FilePath = "msiexec.exe"
-            }
+        Write-Host "::debug::Installer Arguments: $($Arguments -join ' ')"
+        try {
+          $Process = Start-Process -FilePath $Installer -ArgumentList $Arguments -Wait -PassThru -Verb RunAs
+          switch ($Process.ExitCode) {
+            0 { Write-Host "::debug::Installation successful" }
+            3010 { Write-Host "::notice::Installation successful; reboot required"}
             default {
-              throw "Unknown installer type (${Type}), please specify via `-Type` parameter"
+              Write-Host "::error::Installation process returned unexpected exit code: $_"
+              exit $_
             }
           }
+        } catch {
+          Write-Host "::error::Installation failed: $($_.Exception.Message)"
+          exit 1
+        }
 
-          $InstallArgs += "${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
-
-          $StartTime = Get-Date
-          Write-Host "Installer args: $($InstallArgs -join ' ')"
-          Write-Host "Starting Install..."
-          try {
-            $Process = Start-Process -FilePath $FilePath -ArgumentList $InstallArgs -Wait -PassThru -Verb RunAs
-            $ExitCode = $Process.ExitCode
-            $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
-            switch ($ExitCode) {
-              0 { Write-Host "Installation successful in $Duration seconds" }
-              3010 { Write-Host "Installation successful in $Duration seconds; reboot required"}
-              default {
-                Write-Host "Installation process returned unexpected exit code: $ExitCode"
-                Write-Host "Time elapsed: $Duration seconds"
-                exit $ExitCode
-              }
+        foreach ($level in "Machine", "User") {
+          [Environment]::GetEnvironmentVariables($level).GetEnumerator() | ForEach-Object {
+            # For Path variables, append the new values, if they're not already in there
+            if ($_.Name -eq "Path") {
+              $_.Value = ("${env:Path};$($_.Value)" -Split ';' | Select -Unique) -Join ';'
             }
-          } catch {
-            $Duration = [math]::Round(($(Get-Date) - $StartTime).TotalSeconds, 2)
-            Write-Host "Installation failed after $Duration seconds: $_"
-            exit 1
-          }
+            $_
+          } | Set-Content -Path { "Env:$($_.Name)" }
         }
-
-        if ("${{ steps.validation.outputs.use_custom_url }}" -eq "1") {
-          Invoke-Installer -LocalPath "${{ inputs.release-asset-name }}" -InstallArgs ("/quiet")
-        } else {
-          if ("${{ inputs.build_arch }}" -eq "amd64") {
-            Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe" -InstallArgs ("/quiet")
-          } else {
-            Invoke-Installer -URL "https://download.swift.org/${{ inputs.branch }}/windows10-${{ inputs.build_arch }}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10-${{ inputs.build_arch }}.exe" -InstallArgs ("/quiet")
-          }
-        }
-        Update-EnvironmentVariables
 
         # Reset Path and environment
-        echo "$env:Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
-        Get-ChildItem Env: | % { echo "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
+        Write-Output "$env:Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
+        Get-ChildItem Env: | ForEach-Object { echo "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
       shell: pwsh
 
     - name: Check Swift version
       if: runner.os == 'Windows'
       id: swift-version
-      shell: pwsh
       run: |
-        $SwiftVersionOutput=$(swift --version)
-        if ("$SwiftVersionOutput" -match "[\d]+(\.[\d]+){0,2}") {
-          $SwiftSemVer=$Matches[0]
-
-          # Ensure we have at least MAJOR.MINOR or [System.Version] won't parse.
-          if (-Not ($SwiftSemVer -like "*.*")) {
-            $SwiftSemVer += ".0"
-          }
-
-          $SwiftVersion=[System.Version]($SwiftSemVer)
-
-          # If the toolchain is newer than 5.9 we don't need to ensure compatibility with VS2022.
-          if ($SwiftVersion -gt [System.Version]"5.9") {
-            "is_newer_than_5_9='true'" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
-          } else {
-            "is_newer_than_5_9='false'" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
-          }
+        $Output = swift --version
+        $Match = ([regex]"\d+.\d+(.\d+)?").Match($Output)
+        if ($Match.Success) {
+          $SwiftVersion = [System.Version]($Match.Groups[0].Value)
+          Write-Output is_newer_than_5_9=$($SwiftVersion -gt [System.Version]"5.9") | Out-File $env:GITHUB_OUTPUT -Append -Encoding UTF8
         }
+      shell: pwsh
 
     - name: VS2022 Compatibility Setup
       if: runner.os == 'Windows' && steps.swift-version.outputs.is_newer_than_5_9 == 'false'
@@ -291,10 +144,11 @@ runs:
       if: runner.os == 'Linux'
       run: |
         source /etc/os-release
+        echo ${ID} ${VERSION_ID}
         case ${ID} in
         ubuntu)
           case ${VERSION_ID} in
-          16.04|18.04|20.04|22.04)
+          16.04|18.04|20.04|22.04|24.04)
             if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
               mv "${{ inputs.release-asset-name }}" swift-toolchain.tar.gz
             else
@@ -304,7 +158,7 @@ runs:
             rm -f swift-toolchain.tar.gz
           ;;
           *)
-            echo "::error file=/etc/os-release,title=Unsupported::unsupported ${OS} release (${VERSION_ID})"
+            echo "::error file=/etc/os-release,title=Unsupported::unsupported ${ID} release (${VERSION_ID})"
             exit 1
           esac
         ;;
