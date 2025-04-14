@@ -29,7 +29,7 @@ jobs:
       uses: ./
       with:
         branch: development
-        tag: DEVELOPMENT-SNAPSHOT-2025-02-28-a
+        tag: DEVELOPMENT-SNAPSHOT-2025-02-24-a
 
     - name: Check Swift version
       run: swift --version
@@ -59,7 +59,7 @@ jobs:
       uses: ./
       with:
         branch: development
-        tag: DEVELOPMENT-SNAPSHOT-2025-02-28-a
+        tag: DEVELOPMENT-SNAPSHOT-2025-02-24-a
         installer-args: OptionsInstallIDE=0 
 
     - name: Assert that we find swiftc.exe
