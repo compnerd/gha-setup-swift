@@ -150,7 +150,7 @@ runs:
         source /etc/os-release
         echo ${ID} ${VERSION_ID}
         case ${ID} in
-        Ubuntu)
+        ubuntu)
           case ${VERSION_ID} in
           16.04|18.04|20.04|22.04|24.04)
             if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
