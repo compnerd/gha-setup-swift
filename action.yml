@@ -69,7 +69,7 @@ runs:
         try {
           (New-Object System.Net.WebClient).DownloadFile($URL, $Path)
         } catch {
-          Write-Host "::error::Package download failed: $(_.Exception.Message)"
+          Write-Host "::error::Package download failed: $($_.Exception.Message)"
         }
       shell: pwsh
 
