@@ -147,10 +147,10 @@ runs:
     - name: Install Swift ${{ inputs.tag }}
       if: runner.os == 'Linux'
       run: |
-        cat /etc/os-release
         source /etc/os-release
+        echo ${ID} ${VERSION_ID}
         case ${ID} in
-        ubuntu)
+        Ubuntu)
           case ${VERSION_ID} in
           16.04|18.04|20.04|22.04|24.04)
             if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
@@ -162,7 +162,7 @@ runs:
             rm -f swift-toolchain.tar.gz
           ;;
           *)
-            echo "::error file=/etc/os-release,title=Unsupported::unsupported ${OS} release (${VERSION_ID})"
+            echo "::error file=/etc/os-release,title=Unsupported::unsupported ${ID} release (${VERSION_ID})"
             exit 1
           esac
         ;;
