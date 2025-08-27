@@ -62,8 +62,8 @@ runs:
 
         # Ensure that only the deprecated or the new parameter set is used at one time.
         $errors = @(
-          if (![String]::IsNullOrEmpty("${{ inputs.branch }}") -and $SwiftVersion) { "Cannot specify both 'branch' (deprecated) and 'swift-version'. Please use only 'swift-version'." }
-          if (![String]::IsNullOrEmpty("${{ inputs.tag }}") -and $SwiftBuild) { "Cannot specify both 'tag' (deprecated) and 'swift-build'. Please use only 'swift-build'." }
+          if (![String]::IsNullOrEmpty("${{ inputs.branch }}") -and ![String]::IsNullOrEmpty($SwiftVersion)) { "Cannot specify both 'branch' (deprecated) and 'swift-version'. Please use only 'swift-version'." }
+          if (![String]::IsNullOrEmpty("${{ inputs.tag }}") -and ![String]::IsNullOrEmpty($SwiftBuild)) { "Cannot specify both 'tag' (deprecated) and 'swift-build'. Please use only 'swift-build'." }
         )
         foreach ($error in $errors) { Write-Host "::error::$error" }
         if ($errors) { exit 1 }
