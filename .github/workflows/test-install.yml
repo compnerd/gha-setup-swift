@@ -28,8 +28,8 @@ jobs:
     - name: Install Swift
       uses: ./
       with:
-        branch: development
-        tag: DEVELOPMENT-SNAPSHOT-2025-02-24-a
+        swift-version: development
+        swift-build: DEVELOPMENT-SNAPSHOT-2025-08-26-a
 
     - name: Check Swift version
       run: swift --version
@@ -58,8 +58,8 @@ jobs:
     - name: Install Swift without the IDE component
       uses: ./
       with:
-        branch: development
-        tag: DEVELOPMENT-SNAPSHOT-2025-02-24-a
+        swift-version: development
+        swift-build: DEVELOPMENT-SNAPSHOT-2025-08-26-a
         installer-args: OptionsInstallIDE=0 
 
     - name: Assert that we find swiftc.exe
