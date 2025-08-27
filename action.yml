@@ -12,16 +12,24 @@ inputs:
       - custom
 
   # for swift.org toolchains:
-  branch:
-    description: 'Branch for swift.org builds. Only specifiy when using official Swift toolchains from swift.org'
+  swift-version:
+    description: 'Swift version identifier for swift.org builds (e.g., swift-5.5-release, development). Only specify when using official Swift toolchains from swift.org'
     required: false
-  tag:
-    description: 'Tag for swift.org builds. Only specifiy when using official Swift toolchains from swift.org'
+  swift-build:
+    description: 'Swift build identifier for swift.org builds (e.g., 5.5-RELEASE, DEVELOPMENT-SNAPSHOT-2021-09-18-a). Only specify when using official Swift toolchains from swift.org'
     required: false
   build_arch:
-    description: 'Build architecture (amd64 or arm64). Only specifiy when using official Swift toolchains from swift.org'
+    description: 'Build architecture (amd64 or arm64). Only specify when using official Swift toolchains from swift.org'
     default: 'amd64'
     required: true
+
+  # deprecated parameters (for backward compatibility)
+  branch:
+    description: '[DEPRECATED] Use swift-version instead. Branch for swift.org builds. Only specify when using official Swift toolchains from swift.org'
+    required: false
+  tag:
+    description: '[DEPRECATED] Use swift-build instead. Tag for swift.org builds. Only specify when using official Swift toolchains from swift.org'
+    required: false
 
   # for custom toolchains:
   github-repo:
@@ -46,6 +54,66 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Handle deprecated parameters and validate inputs
+      run: |
+        # Handle backward compatibility for deprecated parameters
+        $SwiftVersion = "${{ inputs.swift-version }}"
+        $SwiftBuild = "${{ inputs.swift-build }}"
+
+        # Ensure that only the deprecated or the new parameter set is used at one time.
+        $errors = @(
+          if (![String]::IsNullOrEmpty("${{ inputs.branch }}") -and $SwiftVersion) { "Cannot specify both 'branch' (deprecated) and 'swift-version'. Please use only 'swift-version'." }
+          if (![String]::IsNullOrEmpty("${{ inputs.tag }}") -and $SwiftBuild) { "Cannot specify both 'tag' (deprecated) and 'swift-build'. Please use only 'swift-build'." }
+        )
+        foreach ($error in $errors) { Write-Host "::error::$error" }
+        if ($errors) { exit 1 }
+
+        # Handle deprecated parameters with warnings.
+        if (![String]::IsNullOrEmpty("${{ inputs.branch }}")) {
+          Write-Host "::warning::The 'branch' input is deprecated and will be removed in a future version. Please use 'swift-version' instead."
+          $SwiftVersion = "${{ inputs.branch }}"
+        }
+
+        if (![String]::IsNullOrEmpty("${{ inputs.tag }}")) {
+          Write-Host "::warning::The 'tag' input is deprecated and will be removed in a future version. Please use 'swift-build' instead."
+          $SwiftBuild = "${{ inputs.tag }}"
+        }
+
+        switch ("${{ inputs.source }}") {
+          "swift.org" {
+            if (-not $SwiftVersion) {
+              Write-Host "::error::swift-version is required when using swift.org source"
+              exit 1
+            }
+
+            if (-not $SwiftBuild) {
+              Write-Host "::error::swift-build is required when using swift.org source"
+              exit 1
+            }
+          }
+
+          "custom" {
+            if (-not "${{ inputs.github-repo }}") {
+              Write-Host "::error::github-repo is required when using custom source"
+              exit 1
+            }
+
+            if (-not "${{ inputs.release-tag-name }}") {
+              Write-Host "::error::release-tag-name is required when using custom source"
+              exit 1
+            }
+
+            if (-not "${{ inputs.release-asset-name }}") {
+              Write-Host "::error::release-asset-name is required when using custom source"
+              exit 1
+            }
+          }
+        }
+
+        # Export resolved values for use in subsequent steps.
+        Write-Output "RESOLVED_SWIFT_VERSION=$SwiftVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        Write-Output "RESOLVED_SWIFT_BUILD=$SwiftBuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      shell: pwsh
     - name: Fetch installer from GitHub release
       if: inputs.source == 'custom'
       env:
@@ -58,9 +126,9 @@ runs:
       if: runner.os == 'Windows' && inputs.source == 'swift.org'
       run: |
         $URL = if ("${{ inputs.build_arch }}" -eq "amd64") {
-          "https://download.swift.org/${{ inputs.branch }}/windows10/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10.exe"
+          "https://download.swift.org/${env:RESOLVED_SWIFT_VERSION}/windows10/swift-${env:RESOLVED_SWIFT_BUILD}/swift-${env:RESOLVED_SWIFT_BUILD}-windows10.exe"
         } else {
-          "https://download.swift.org/${{ inputs.branch }}/windows10-${{ inputs.build_arch }}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-windows10-${{ inputs.build_arch }}.exe"
+          "https://download.swift.org/${env:RESOLVED_SWIFT_VERSION}/windows10-${{ inputs.build_arch }}/swift-${env:RESOLVED_SWIFT_BUILD}/swift-${env:RESOLVED_SWIFT_BUILD}-windows10-${{ inputs.build_arch }}.exe"
         }
 
         $Path = [IO.Path]::Combine(${env:Temp}, "installer.exe")
@@ -73,7 +141,7 @@ runs:
         }
       shell: pwsh
 
-    - name: Install Swift ${{ inputs.tag }}
+    - name: Install Swift
       id: install-swift
       if: runner.os == 'Windows'
       run: |
@@ -148,7 +216,7 @@ runs:
         Copy-Item "$env:SDKROOT\usr\share\winsdk.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\um\module.modulemap"
       shell: pwsh
 
-    - name: Install Swift ${{ inputs.tag }}
+    - name: Install Swift
       if: runner.os == 'Linux'
       run: |
         source /etc/os-release
@@ -157,10 +225,10 @@ runs:
         ubuntu)
           case ${VERSION_ID} in
           16.04|18.04|20.04|22.04|24.04)
-            if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
+            if [[ "${{ inputs.source }}" == "custom" ]]; then
               mv "${{ inputs.release-asset-name }}" swift-toolchain.tar.gz
             else
-              curl -sL https://download.swift.org/${{ inputs.branch }}/ubuntu${VERSION_ID/./}/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-ubuntu${VERSION_ID}.tar.gz -o swift-toolchain.tar.gz
+              curl -sL https://download.swift.org/${RESOLVED_SWIFT_VERSION}/ubuntu${VERSION_ID/./}/swift-${RESOLVED_SWIFT_BUILD}/swift-${RESOLVED_SWIFT_BUILD}-ubuntu${VERSION_ID}.tar.gz -o swift-toolchain.tar.gz
             fi
             tar zxf swift-toolchain.tar.gz -C ${HOME}
             rm -f swift-toolchain.tar.gz
@@ -178,17 +246,17 @@ runs:
         echo "${HOME}/usr/bin" >> $GITHUB_PATH
       shell: bash
 
-    - name: Install Swift ${{ inputs.tag }}
+    - name: Install Swift
       if: runner.os == 'macOS'
       run: |
-        if [[ "${{ steps.validation.outputs.use_custom_url }}" == "1" ]]; then
-          mv "${{ inputs.release-asset-name }}" swift-${{ inputs.tag }}-osx.pkg
+        if [[ "${{ inputs.source }}" == "custom" ]]; then
+          mv "${{ inputs.release-asset-name }}" swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
         else
-          curl -sOL https://download.swift.org/${{ inputs.branch }}/xcode/swift-${{ inputs.tag }}/swift-${{ inputs.tag }}-osx.pkg
+          curl -sOL https://download.swift.org/${RESOLVED_SWIFT_VERSION}/xcode/swift-${RESOLVED_SWIFT_BUILD}/swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
         fi
-        xattr -dr com.apple.quarantine swift-${{ inputs.tag }}-osx.pkg
-        installer -pkg swift-${{ inputs.tag }}-osx.pkg -target CurrentUserHomeDirectory
-        rm -f swift-${{ inputs.tag }}-osx.pkg
+        xattr -dr com.apple.quarantine swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
+        installer -pkg swift-${RESOLVED_SWIFT_BUILD}-osx.pkg -target CurrentUserHomeDirectory
+        rm -f swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
 
-        echo "TOOLCHAINS=$(plutil -extract 'CFBundleIdentifier' xml1 ${HOME}/Library/Developer/Toolchains/swift-${{ inputs.tag }}.xctoolchain/Info.plist | xmllint --xpath '//plist/string/text()' -)" >> $GITHUB_ENV
+        echo "TOOLCHAINS=$(plutil -extract 'CFBundleIdentifier' xml1 ${HOME}/Library/Developer/Toolchains/swift-${RESOLVED_SWIFT_BUILD}.xctoolchain/Info.plist | xmllint --xpath '//plist/string/text()' -)" >> $GITHUB_ENV
       shell: bash
