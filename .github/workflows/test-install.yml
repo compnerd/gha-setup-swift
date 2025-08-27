@@ -69,3 +69,26 @@ jobs:
       shell: pwsh
       run: |
         -not (Get-Command sourcekit-lsp.exe -ErrorAction SilentlyContinue)
+
+  windows-update-sdk-modules:
+    name: Test SDK module updates on Windows
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: compnerd/gha-setup-vsdevenv@main
+
+    - name: Install Swift with SDK module updates
+      uses: ./
+      with:
+        swift-version: development
+        swift-build: DEVELOPMENT-SNAPSHOT-2025-08-26-a
+        update-sdk-modules: true
+
+    - name: Verify Swift installation
+      run: swift --version
+
+    - name: Smoke test
+      run: |
+        swift package init --type executable
+        swift build

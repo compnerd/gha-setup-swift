@@ -50,6 +50,11 @@ inputs:
     description: 'Additional arguments to pass to the installer, space-delimited (double quotes are not supported)'
     required: false
     default: ''
+  update-sdk-modules:
+    description: 'Update SDK module definitions to latest version after installation (Windows only)'
+    required: false
+    default: 'false'
+    type: boolean
 
 runs:
   using: 'composite'
@@ -214,6 +219,48 @@ runs:
           Copy-Item "$env:SDKROOT\usr\share\visualc.apinotes" -destination "$env:VCToolsInstallDir\include\visualc.apinotes"
         }
         Copy-Item "$env:SDKROOT\usr\share\winsdk.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\um\module.modulemap"
+      shell: pwsh
+
+    - name: Update SDK Module Definitions
+      if: runner.os == 'Windows' && inputs.update-sdk-modules == 'true'
+      run: |
+        Write-Host "::notice::Updating SDK module definitions to latest version..."
+
+        $SwiftRoot = Split-Path -Path (Split-Path -Path (Get-Command swift).Source -Parent) -Parent
+
+        $ModuleDefinitions = @{
+          "WinSDK(UM) Module Map" = @{
+            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk.modulemap"))";
+          };
+          "UCRT Module Map" = @{
+            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/ucrt.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "ucrt.modulemap"))";
+          };
+          "VCRuntime Module Map" = @{
+            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/vcruntime.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "vcruntime.modulemap"))";
+          };
+          "VCRuntime API Notes" = @{
+            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/vcruntime.apinotes";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "vcruntime.apinotes"))";
+          };
+          "Clang Module Map" = @{
+            URL = "https://raw.githubusercontent.com/llvm/llvm-project/main/clang/lib/Headers/module.modulemap";
+            Destination = "$([IO.Path]::Combine("$SwiftRoot", "lib", "swift", "clang", "include", "module.modulemap"))";
+          };
+        }
+
+        $ModuleDefinitions.GetEnumerator() | ForEach-Object {
+          Write-Host "::notice::Updating $($_.Value.Destination)"
+          curl.exe --fail --silent --show-error --retry 3 --retry-delay 5 --output "$($_.Value.Destination)" --location $_.Value.URL
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Failed to update $($_.Key)"
+            exit 1
+          }
+        }
+
+        Write-Host "::notice::SDK module definitions updated successfully"
       shell: pwsh
 
     - name: Install Swift
