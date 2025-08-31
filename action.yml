@@ -130,6 +130,7 @@ runs:
     - name: Fetch installer from swift.org
       if: runner.os == 'Windows' && inputs.source == 'swift.org'
       run: |
+        # Download the appropriate installer
         $URL = if ("${{ inputs.build_arch }}" -eq "amd64") {
           "https://download.swift.org/${env:RESOLVED_SWIFT_VERSION}/windows10/swift-${env:RESOLVED_SWIFT_BUILD}/swift-${env:RESOLVED_SWIFT_BUILD}-windows10.exe"
         } else {
@@ -150,6 +151,7 @@ runs:
       id: install-swift
       if: runner.os == 'Windows'
       run: |
+        # Perform installation
         $Installer = [IO.Path]::Combine(${env:Temp}, "installer.exe")
         $Arguments = "/quiet /lv*x ${env:Temp}/install.log ${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
