@@ -232,8 +232,12 @@ runs:
 
         $ModuleDefinitions = @{
           "WinSDK(UM) Module Map" = @{
-            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk.modulemap";
-            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk.modulemap"))";
+            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk_um.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk_um.modulemap"))";
+          };
+          "WinSDK(Shared) Module Map" = @{
+            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk_shared.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk_shared.modulemap"))";
           };
           "UCRT Module Map" = @{
             URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/ucrt.modulemap";
