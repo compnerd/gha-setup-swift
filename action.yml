@@ -231,6 +231,10 @@ runs:
         $SwiftRoot = Split-Path -Path (Split-Path -Path (Get-Command swift).Source -Parent) -Parent
 
         $ModuleDefinitions = @{
+          "(Legacy) WinSDK Module Map" = @{
+            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk_um.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk.modulemap"))";
+          };
           "WinSDK(UM) Module Map" = @{
             URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk_um.modulemap";
             Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk_um.modulemap"))";
