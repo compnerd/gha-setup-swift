@@ -263,7 +263,7 @@ runs:
 
         $ModuleDefinitions.GetEnumerator() | ForEach-Object {
           Write-Host "::notice::Updating $($_.Value.Destination)"
-          curl.exe --fail --silent --show-error --retry 3 --retry-delay 5 --output "$($_.Value.Destination)" --location $_.Value.URL
+          & curl.exe --fail --silent --show-error --retry 3 --retry-delay 5 --output "$($_.Value.Destination)" --location $_.Value.URL
           if ($LASTEXITCODE -ne 0) {
             Write-Host "::error::Failed to update $($_.Key)"
             exit 1
