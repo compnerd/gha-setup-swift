@@ -315,5 +315,5 @@ runs:
         installer -pkg swift-${RESOLVED_SWIFT_BUILD}-osx.pkg -target CurrentUserHomeDirectory
         rm -f swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
 
-        echo "TOOLCHAINS=$(plutil -extract 'CFBundleIdentifier' xml1 ${HOME}/Library/Developer/Toolchains/swift-${RESOLVED_SWIFT_BUILD}.xctoolchain/Info.plist | xmllint --xpath '//plist/string/text()' -)" >> $GITHUB_ENV
+        echo "TOOLCHAINS=$(plutil -extract 'CFBundleIdentifier' xml1 -o - ${HOME}/Library/Developer/Toolchains/swift-${RESOLVED_SWIFT_BUILD}.xctoolchain/Info.plist | xmllint --xpath '//plist/string/text()' -)" >> $GITHUB_ENV
       shell: bash
