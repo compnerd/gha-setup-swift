@@ -198,6 +198,14 @@ runs:
       id: swift-version
       run: |
         $Output = swift --version
+        if $LASTEXITCODE -ne 0 {
+          Write-Host "::error::Swift exited with code $LASTEXITCODE"
+          exit 1
+        }
+        if ($Output.size -eq 0) {
+          Write-Host "::error::`swift --version` output is empty"
+          exit 1
+        }
         $Match = ([regex]"\d+.\d+(.\d+)?").Match($Output)
         if ($Match.Success) {
           $SwiftVersion = [System.Version]($Match.Groups[0].Value)
