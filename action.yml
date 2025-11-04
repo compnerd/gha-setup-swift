@@ -202,7 +202,7 @@ runs:
           Write-Host "::error::Swift exited with code $LASTEXITCODE"
           exit 1
         }
-        if ($Output.size -eq 0) {
+        if ($Output.Length -eq 0) {
           Write-Host "::error::`swift --version` output is empty"
           exit 1
         }
