@@ -198,7 +198,7 @@ runs:
       id: swift-version
       run: |
         $Output = swift --version
-        if $LASTEXITCODE -ne 0 {
+        if ($LASTEXITCODE -ne 0) {
           Write-Host "::error::Swift exited with code $LASTEXITCODE"
           exit 1
         }
