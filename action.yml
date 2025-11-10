@@ -56,7 +56,7 @@ inputs:
     default: 'false'
     type: boolean
   cache:
-    description: 'Cache downloaded toolchains (Windows only)'
+    description: 'Cache downloaded toolchains'
     required: false
     default: 'false'
     type: boolean
