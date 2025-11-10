@@ -134,10 +134,10 @@ runs:
         } else {
           $CacheKey = "swift-toolchain-windows-custom-${{ inputs.github-repo }}-${{ inputs.release-tag-name }}-${{ inputs.release-asset-name }}".Replace("/", "-")
         }
-        Write-Output "key=$CacheKey" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        "key=$CacheKey" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
         $CachePath = [IO.Path]::Combine(${env:Temp}, "installer.exe")
-        Write-Output "path=$CachePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        "path=$CachePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
       shell: pwsh
 
     - name: Restore cached toolchain
