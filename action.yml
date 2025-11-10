@@ -55,6 +55,11 @@ inputs:
     required: false
     default: 'false'
     type: boolean
+  cache:
+    description: 'Cache downloaded toolchains (Windows only)'
+    required: false
+    default: 'false'
+    type: boolean
 
 runs:
   using: 'composite'
@@ -119,16 +124,48 @@ runs:
         Write-Output "RESOLVED_SWIFT_VERSION=$SwiftVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         Write-Output "RESOLVED_SWIFT_BUILD=$SwiftBuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       shell: pwsh
-    - name: Fetch installer from GitHub release
-      if: inputs.source == 'custom'
+
+    - name: Generate cache key
+      if: runner.os == 'Windows' && inputs.cache == 'true'
+      id: cache-key
+      run: |
+        if ("${{ inputs.source }}" -eq "swift.org") {
+          $CacheKey = "swift-toolchain-windows-${{ inputs.build_arch }}-${env:RESOLVED_SWIFT_VERSION}-${env:RESOLVED_SWIFT_BUILD}"
+        } else {
+          $CacheKey = "swift-toolchain-windows-custom-${{ inputs.github-repo }}-${{ inputs.release-tag-name }}-${{ inputs.release-asset-name }}".Replace("/", "-")
+        }
+        Write-Output "key=$CacheKey" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+        $CachePath = [IO.Path]::Combine(${env:Temp}, "installer.exe")
+        Write-Output "path=$CachePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Restore cached toolchain
+      if: runner.os == 'Windows' && inputs.cache == 'true'
+      id: cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ steps.cache-key.outputs.path }}
+        key: ${{ steps.cache-key.outputs.key }}
+
+    - name: Fetch installer from GitHub release (Windows)
+      if: runner.os == 'Windows' && inputs.source == 'custom' && (inputs.cache != 'true' || steps.cache-restore.outputs.cache-hit != 'true')
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
         gh release download "${{ inputs.release-tag-name }}" --skip-existing --repo "${{ inputs.github-repo }}" --pattern "${{ inputs.release-asset-name }}" --output $([IO.Path]::Combine(${env:Temp}, "installer.exe"))
       shell: pwsh
 
+    - name: Fetch installer from GitHub release (Linux/macOS)
+      if: runner.os != 'Windows' && inputs.source == 'custom'
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        gh release download "${{ inputs.release-tag-name }}" --skip-existing --repo "${{ inputs.github-repo }}" --pattern "${{ inputs.release-asset-name }}"
+      shell: bash
+
     - name: Fetch installer from swift.org
-      if: runner.os == 'Windows' && inputs.source == 'swift.org'
+      if: runner.os == 'Windows' && inputs.source == 'swift.org' && (inputs.cache != 'true' || steps.cache-restore.outputs.cache-hit != 'true')
       run: |
         # Download the appropriate installer
         $URL = if ("${{ inputs.build_arch }}" -eq "amd64") {
@@ -146,6 +183,13 @@ runs:
           Write-Host "::error::Package download failed: $($_.Exception.Message)"
         }
       shell: pwsh
+
+    - name: Save toolchain to cache
+      if: runner.os == 'Windows' && inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.cache-key.outputs.path }}
+        key: ${{ steps.cache-key.outputs.key }}
 
     - name: Install Swift
       id: install-swift
