@@ -55,6 +55,11 @@ inputs:
     required: false
     default: 'false'
     type: boolean
+  cache:
+    description: 'Cache downloaded toolchains'
+    required: false
+    default: 'false'
+    type: boolean
 
 runs:
   using: 'composite'
@@ -119,16 +124,98 @@ runs:
         Write-Output "RESOLVED_SWIFT_VERSION=$SwiftVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         Write-Output "RESOLVED_SWIFT_BUILD=$SwiftBuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       shell: pwsh
-    - name: Fetch installer from GitHub release
-      if: inputs.source == 'custom'
+
+    - name: Validate Linux distribution
+      if: runner.os == 'Linux'
+      run: |
+        source /etc/os-release
+        echo ${ID} ${VERSION_ID}
+        case ${ID} in
+        ubuntu)
+          case ${VERSION_ID} in
+          16.04|18.04|20.04|22.04|24.04)
+            ;;
+          *)
+            echo "::error file=/etc/os-release,title=Unsupported::unsupported ${ID} release (${VERSION_ID})"
+            exit 1
+          esac
+        ;;
+        *)
+          echo ::error unknown Linux distribution
+          exit 1
+        esac
+      shell: bash
+
+    - name: Generate cache key (Windows)
+      if: runner.os == 'Windows' && inputs.cache == 'true'
+      id: cache-key
+      run: |
+        if ("${{ inputs.source }}" -eq "swift.org") {
+          $CacheKey = "swift-toolchain-windows-${{ inputs.build_arch }}-${env:RESOLVED_SWIFT_VERSION}-${env:RESOLVED_SWIFT_BUILD}"
+        } else {
+          $CacheKey = "swift-toolchain-windows-custom-${{ inputs.github-repo }}-${{ inputs.release-tag-name }}-${{ inputs.release-asset-name }}".Replace("/", "-")
+        }
+        "key=$CacheKey" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+        $CachePath = [IO.Path]::Combine(${env:Temp}, "installer.exe")
+        "path=$CachePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Generate cache key (Linux/macOS)
+      if: runner.os != 'Windows' && inputs.cache == 'true'
+      id: cache-key-posix
+      run: |
+        OS=$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')
+
+        if [[ "${{ inputs.source }}" == "swift.org" ]]; then
+          CACHE_KEY="swift-toolchain-${OS}-${{ inputs.build_arch }}-${RESOLVED_SWIFT_VERSION}-${RESOLVED_SWIFT_BUILD}"
+        else
+          CACHE_KEY="swift-toolchain-${OS}-custom-${{ inputs.github-repo }}-${{ inputs.release-tag-name }}-${{ inputs.release-asset-name }}"
+          CACHE_KEY="${CACHE_KEY//\//-}"
+        fi
+        echo "key=${CACHE_KEY}" >> $GITHUB_OUTPUT
+
+        # Set cache path based on OS
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          CACHE_PATH="swift-toolchain.tar.gz"
+        else
+          CACHE_PATH="swift-${RESOLVED_SWIFT_BUILD}-osx.pkg"
+        fi
+        echo "path=${CACHE_PATH}" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Restore cached toolchain
+      if: inputs.cache == 'true'
+      id: cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ runner.os == 'Windows' && steps.cache-key.outputs.path || steps.cache-key-posix.outputs.path }}
+        key: ${{ runner.os == 'Windows' && steps.cache-key.outputs.key || steps.cache-key-posix.outputs.key }}
+
+    - name: Fetch installer from GitHub release (Windows)
+      if: runner.os == 'Windows' && inputs.source == 'custom' && (inputs.cache != 'true' || steps.cache-restore.outputs.cache-hit != 'true')
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
         gh release download "${{ inputs.release-tag-name }}" --skip-existing --repo "${{ inputs.github-repo }}" --pattern "${{ inputs.release-asset-name }}" --output $([IO.Path]::Combine(${env:Temp}, "installer.exe"))
       shell: pwsh
 
+    - name: Fetch installer from GitHub release (Linux/macOS)
+      if: runner.os != 'Windows' && inputs.source == 'custom' && (inputs.cache != 'true' || steps.cache-restore.outputs.cache-hit != 'true')
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        gh release download "${{ inputs.release-tag-name }}" --skip-existing --repo "${{ inputs.github-repo }}" --pattern "${{ inputs.release-asset-name }}"
+
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          mv "${{ inputs.release-asset-name }}" swift-toolchain.tar.gz
+        else
+          mv "${{ inputs.release-asset-name }}" swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
+        fi
+      shell: bash
+
     - name: Fetch installer from swift.org
-      if: runner.os == 'Windows' && inputs.source == 'swift.org'
+      if: runner.os == 'Windows' && inputs.source == 'swift.org' && (inputs.cache != 'true' || steps.cache-restore.outputs.cache-hit != 'true')
       run: |
         # Download the appropriate installer
         $URL = if ("${{ inputs.build_arch }}" -eq "amd64") {
@@ -146,6 +233,26 @@ runs:
           Write-Host "::error::Package download failed: $($_.Exception.Message)"
         }
       shell: pwsh
+
+    - name: Fetch installer from swift.org (Linux)
+      if: runner.os == 'Linux' && inputs.source == 'swift.org' && (inputs.cache != 'true' || steps.cache-restore.outputs.cache-hit != 'true')
+      run: |
+        source /etc/os-release
+        curl -sL https://download.swift.org/${RESOLVED_SWIFT_VERSION}/ubuntu${VERSION_ID/./}/swift-${RESOLVED_SWIFT_BUILD}/swift-${RESOLVED_SWIFT_BUILD}-ubuntu${VERSION_ID}.tar.gz -o swift-toolchain.tar.gz
+      shell: bash
+
+    - name: Fetch installer from swift.org (macOS)
+      if: runner.os == 'macOS' && inputs.source == 'swift.org' && (inputs.cache != 'true' || steps.cache-restore.outputs.cache-hit != 'true')
+      run: |
+        curl -sOL https://download.swift.org/${RESOLVED_SWIFT_VERSION}/xcode/swift-${RESOLVED_SWIFT_BUILD}/swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
+      shell: bash
+
+    - name: Save toolchain to cache
+      if: inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.os == 'Windows' && steps.cache-key.outputs.path || steps.cache-key-posix.outputs.path }}
+        key: ${{ runner.os == 'Windows' && steps.cache-key.outputs.key || steps.cache-key-posix.outputs.key }}
 
     - name: Install Swift
       id: install-swift
@@ -284,41 +391,14 @@ runs:
     - name: Install Swift
       if: runner.os == 'Linux'
       run: |
-        source /etc/os-release
-        echo ${ID} ${VERSION_ID}
-        case ${ID} in
-        ubuntu)
-          case ${VERSION_ID} in
-          16.04|18.04|20.04|22.04|24.04)
-            if [[ "${{ inputs.source }}" == "custom" ]]; then
-              mv "${{ inputs.release-asset-name }}" swift-toolchain.tar.gz
-            else
-              curl -sL https://download.swift.org/${RESOLVED_SWIFT_VERSION}/ubuntu${VERSION_ID/./}/swift-${RESOLVED_SWIFT_BUILD}/swift-${RESOLVED_SWIFT_BUILD}-ubuntu${VERSION_ID}.tar.gz -o swift-toolchain.tar.gz
-            fi
-            tar zxf swift-toolchain.tar.gz -C ${HOME}
-            rm -f swift-toolchain.tar.gz
-          ;;
-          *)
-            echo "::error file=/etc/os-release,title=Unsupported::unsupported ${ID} release (${VERSION_ID})"
-            exit 1
-          esac
-        ;;
-        *)
-          echo ::error unknown Linux distribution
-          exit 1
-        esac
-
+        tar zxf swift-toolchain.tar.gz -C ${HOME}
+        rm -f swift-toolchain.tar.gz
         echo "${HOME}/usr/bin" >> $GITHUB_PATH
       shell: bash
 
     - name: Install Swift
       if: runner.os == 'macOS'
       run: |
-        if [[ "${{ inputs.source }}" == "custom" ]]; then
-          mv "${{ inputs.release-asset-name }}" swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
-        else
-          curl -sOL https://download.swift.org/${RESOLVED_SWIFT_VERSION}/xcode/swift-${RESOLVED_SWIFT_BUILD}/swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
-        fi
         xattr -dr com.apple.quarantine swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
         installer -pkg swift-${RESOLVED_SWIFT_BUILD}-osx.pkg -target CurrentUserHomeDirectory
         rm -f swift-${RESOLVED_SWIFT_BUILD}-osx.pkg
