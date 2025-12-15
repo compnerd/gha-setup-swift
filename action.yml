@@ -283,8 +283,12 @@ runs:
             # For Path variables, append the new values, if they're not already in there
             if ($_.Name -eq "Path") {
               $_.Value = ("${env:Path};$($_.Value)" -Split ';' | Select -Unique) -Join ';'
+              $_
             }
-            $_
+            # For other variables, only set if not already defined
+            elseif (-not (Test-Path "Env:$($_.Name)")) {
+              $_
+            }
           } | Set-Content -Path { "Env:$($_.Name)" }
         }
 
