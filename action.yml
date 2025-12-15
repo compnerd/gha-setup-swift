@@ -278,6 +278,10 @@ runs:
           exit 1
         }
 
+        # Capture original GitHub Actions environment that will be preserved
+        $OriginalEnv = @{}
+        Get-ChildItem Env: | ForEach-Object { $OriginalEnv[$_.Name] = $_.Value }
+
         foreach ($level in "Machine", "User") {
           [Environment]::GetEnvironmentVariables($level).GetEnumerator() | ForEach-Object {
             # For Path variables, append the new values, if they're not already in there
@@ -285,8 +289,8 @@ runs:
               $_.Value = ("${env:Path};$($_.Value)" -Split ';' | Select -Unique) -Join ';'
               $_
             }
-            # For other variables, only set if not already defined
-            elseif (-not (Test-Path "Env:$($_.Name)")) {
+            # For other variables, only set if not already in original GitHub environment
+            elseif (-not $OriginalEnv.ContainsKey($_.Name)) {
               $_
             }
           } | Set-Content -Path { "Env:$($_.Name)" }
