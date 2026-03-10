@@ -260,7 +260,7 @@ runs:
       run: |
         # Perform installation
         $Installer = [IO.Path]::Combine(${env:Temp}, "installer.exe")
-        $Arguments = "/quiet /lv*x ${env:Temp}/install.log ${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
+        $Arguments = "/quiet /log ${env:Temp}\install.log ${{ inputs.installer-args }}".Split(" ", [StringSplitOptions]"RemoveEmptyEntries")
 
         Write-Host "::debug::Installer Arguments: $($Arguments -join ' ')"
         try {
