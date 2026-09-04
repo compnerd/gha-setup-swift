@@ -393,7 +393,9 @@ runs:
       run: |
         tar zxf swift-toolchain.tar.gz -C ${HOME}
         rm -f swift-toolchain.tar.gz
-        echo "${HOME}/usr/bin" >> $GITHUB_PATH
+        SWIFT_PATHS=("$HOME"/swift-*/usr/bin)
+        SWIFT_PATH=${SWIFT_PATHS[0]}
+        echo "${SWIFT_PATH}" >> $GITHUB_PATH
       shell: bash
 
     - name: Install Swift
