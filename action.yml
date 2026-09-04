@@ -187,7 +187,7 @@ runs:
     - name: Restore cached toolchain
       if: inputs.cache == 'true'
       id: cache-restore
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: ${{ runner.os == 'Windows' && steps.cache-key.outputs.path || steps.cache-key-posix.outputs.path }}
         key: ${{ runner.os == 'Windows' && steps.cache-key.outputs.key || steps.cache-key-posix.outputs.key }}
@@ -249,7 +249,7 @@ runs:
 
     - name: Save toolchain to cache
       if: inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         path: ${{ runner.os == 'Windows' && steps.cache-key.outputs.path || steps.cache-key-posix.outputs.path }}
         key: ${{ runner.os == 'Windows' && steps.cache-key.outputs.key || steps.cache-key-posix.outputs.key }}
