@@ -289,7 +289,6 @@ runs:
         }
 
         # Reset Path and environment
-        Write-Output "$env:Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
         Get-ChildItem Env: | ForEach-Object { echo "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
       shell: pwsh
 
