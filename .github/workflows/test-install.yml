@@ -10,6 +10,14 @@ on:
   workflow_dispatch:
 
 jobs:
+  windows-toolchain-path:
+    name: Test Windows toolchain selection
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v7
+    - run: ./tests/Test-WindowsToolchain.ps1
+      shell: pwsh
+
   install-swift:
     strategy:
       fail-fast: false
@@ -20,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - uses: compnerd/gha-setup-vsdevenv@main
       if: ${{ runner.os == 'windows' }}
@@ -52,7 +60,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - uses: compnerd/gha-setup-vsdevenv@main
 
     - name: Install Swift without the IDE component
@@ -75,7 +83,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - uses: compnerd/gha-setup-vsdevenv@main
 
     - name: Install Swift with SDK module updates
