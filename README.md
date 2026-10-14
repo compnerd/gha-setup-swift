@@ -60,7 +60,7 @@ jobs:
 - `github-token`: Optional Github token for fetching a release from a private repository
 
 #### Additional Options:
-- `update-sdk-modules`: Update SDK module definitions to latest version after installation (Windows only, default: false)
+- `update-sdk-modules`: Update SDK module definitions to versions compatible with the installed compiler (Windows only, default: false)
 - `installer-args`: Additional arguments to pass to the installer, space-delimited
 
 #### Deprecated Parameters (will be removed in a future version):
