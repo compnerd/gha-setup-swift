@@ -51,7 +51,7 @@ inputs:
     required: false
     default: ''
   update-sdk-modules:
-    description: 'Update SDK module definitions to latest version after installation (Windows only)'
+    description: 'Update SDK module definitions to versions compatible with the installed compiler (Windows only)'
     required: false
     default: 'false'
     type: boolean
@@ -346,39 +346,73 @@ runs:
     - name: Update SDK Module Definitions
       if: runner.os == 'Windows' && inputs.update-sdk-modules == 'true'
       run: |
-        Write-Host "::notice::Updating SDK module definitions to latest version..."
+        Write-Host "::notice::Updating SDK module definitions..."
 
         $SwiftRoot = Split-Path -Path (Split-Path -Path (Get-Command swift).Source -Parent) -Parent
+        $UsesSplitWinSDKModuleMaps = Test-Path "$env:SDKROOT\usr\share\um.modulemap"
+
+        # Keep the legacy layout when the installed toolchain does not provide
+        # the VFS mappings required by the split WinSDK module maps.
+        $SwiftRevision = if ($UsesSplitWinSDKModuleMaps) {
+          "main"
+        } else {
+          "8bf8281136fa72aa85d72027fcecc31435359ad1"
+        }
+        $SwiftPlatformURL = "https://raw.githubusercontent.com/swiftlang/swift/$SwiftRevision/stdlib/public/Platform"
 
         $ModuleDefinitions = @{
-          "(Legacy) WinSDK Module Map" = @{
-            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk_um.modulemap";
-            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk.modulemap"))";
-          };
-          "WinSDK(UM) Module Map" = @{
-            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk_um.modulemap";
-            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk_um.modulemap"))";
-          };
-          "WinSDK(Shared) Module Map" = @{
-            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/winsdk_shared.modulemap";
-            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk_shared.modulemap"))";
-          };
           "UCRT Module Map" = @{
-            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/ucrt.modulemap";
+            URL = "$SwiftPlatformURL/ucrt.modulemap";
             Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "ucrt.modulemap"))";
           };
           "VCRuntime Module Map" = @{
-            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/vcruntime.modulemap";
+            URL = "$SwiftPlatformURL/vcruntime.modulemap";
             Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "vcruntime.modulemap"))";
           };
           "VCRuntime API Notes" = @{
-            URL = "https://raw.githubusercontent.com/swiftlang/swift/main/stdlib/public/Platform/vcruntime.apinotes";
+            URL = "$SwiftPlatformURL/vcruntime.apinotes";
             Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "vcruntime.apinotes"))";
           };
           "Clang Module Map" = @{
             URL = "https://raw.githubusercontent.com/llvm/llvm-project/main/clang/lib/Headers/module.modulemap";
             Destination = "$([IO.Path]::Combine("$SwiftRoot", "lib", "swift", "clang", "include", "module.modulemap"))";
           };
+        }
+
+        if ($UsesSplitWinSDKModuleMaps) {
+          $ModuleDefinitions["WinSDK Module Map"] = @{
+            URL = "$SwiftPlatformURL/winsdk.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk.modulemap"))";
+          }
+          $ModuleDefinitions["WinSDK(UM) Module Map"] = @{
+            URL = "$SwiftPlatformURL/um.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "um.modulemap"))";
+          }
+          $ModuleDefinitions["WinSDK(Shared) Module Map"] = @{
+            URL = "$SwiftPlatformURL/shared.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "shared.modulemap"))";
+          }
+          $ModuleDefinitions["WinSDK(WinRT) Module Map"] = @{
+            URL = "$SwiftPlatformURL/winrt.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winrt.modulemap"))";
+          }
+          $ModuleDefinitions["WinSDK(WinRT) Header"] = @{
+            URL = "$SwiftPlatformURL/SwiftWinRT.h";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "SwiftWinRT.h"))";
+          }
+        } else {
+          $ModuleDefinitions["(Legacy) WinSDK Module Map"] = @{
+            URL = "$SwiftPlatformURL/winsdk_um.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk.modulemap"))";
+          }
+          $ModuleDefinitions["WinSDK(UM) Module Map"] = @{
+            URL = "$SwiftPlatformURL/winsdk_um.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk_um.modulemap"))";
+          }
+          $ModuleDefinitions["WinSDK(Shared) Module Map"] = @{
+            URL = "$SwiftPlatformURL/winsdk_shared.modulemap";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "winsdk_shared.modulemap"))";
+          }
         }
 
         $ModuleDefinitions.GetEnumerator() | ForEach-Object {
