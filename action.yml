@@ -318,6 +318,8 @@ runs:
           Write-Host "::error::`swift --version` output is empty"
           exit 1
         }
+        $HasSwiftUCRT = Test-Path "$env:SDKROOT\usr\share\SwiftUCRT.h"
+        Write-Output has_swift_ucrt=$HasSwiftUCRT | Out-File $env:GITHUB_OUTPUT -Append -Encoding UTF8
         $Match = ([regex]"\d+.\d+(.\d+)?").Match($Output)
         if ($Match.Success) {
           $SwiftVersion = [System.Version]($Match.Groups[0].Value)
@@ -325,23 +327,9 @@ runs:
         }
       shell: pwsh
 
-    - name: VS2022 Compatibility Setup
-      if: runner.os == 'Windows' && steps.swift-version.outputs.is_newer_than_5_9 == 'false'
+    - name: Set Up Visual Studio Developer Environment
+      if: runner.os == 'Windows' && (steps.swift-version.outputs.is_newer_than_5_9 == 'false' || (inputs.update-sdk-modules == 'true' && steps.swift-version.outputs.has_swift_ucrt == 'false'))
       uses: compnerd/gha-setup-vsdevenv@f1ba60d553a3216ce1b89abe0201213536bc7557 # v6
-
-    - name: VS2022 Compatibility Installation
-      if: runner.os == 'Windows' && steps.swift-version.outputs.is_newer_than_5_9 == 'false'
-      run: |
-        Copy-Item "$env:SDKROOT\usr\share\ucrt.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\module.modulemap"
-        if (Test-Path -Path "$env:SDKROOT\usr\share\vcruntime.modulemap") {
-          Copy-Item "$env:SDKROOT\usr\share\vcruntime.modulemap" -destination "$env:VCToolsInstallDir\include\module.modulemap"
-          Copy-Item "$env:SDKROOT\usr\share\vcruntime.apinotes" -destination "$env:VCToolsInstallDir\include\vcruntime.apinotes"
-        } else {
-          Copy-Item "$env:SDKROOT\usr\share\visualc.modulemap" -destination "$env:VCToolsInstallDir\include\module.modulemap"
-          Copy-Item "$env:SDKROOT\usr\share\visualc.apinotes" -destination "$env:VCToolsInstallDir\include\visualc.apinotes"
-        }
-        Copy-Item "$env:SDKROOT\usr\share\winsdk.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\um\module.modulemap"
-      shell: pwsh
 
     - name: Update SDK Module Definitions
       if: runner.os == 'Windows' && inputs.update-sdk-modules == 'true'
@@ -371,6 +359,10 @@ runs:
           "UCRT Module Map" = @{
             URL = "$SwiftPlatformURL/ucrt.modulemap";
             Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "ucrt.modulemap"))";
+          };
+          "Swift UCRT Header" = @{
+            URL = "$SwiftPlatformURL/SwiftUCRT.h";
+            Destination = "$([IO.Path]::Combine("${env:SDKROOT}", "usr", "share", "SwiftUCRT.h"))";
           };
           "VCRuntime Module Map" = @{
             URL = "$SwiftPlatformURL/vcruntime.modulemap";
@@ -432,6 +424,26 @@ runs:
         }
 
         Write-Host "::notice::SDK module definitions updated successfully"
+      shell: pwsh
+
+    - name: SwiftUCRT Compatibility Installation
+      if: runner.os == 'Windows' && inputs.update-sdk-modules == 'true' && steps.swift-version.outputs.has_swift_ucrt == 'false'
+      run: |
+        Copy-Item "$env:SDKROOT\usr\share\SwiftUCRT.h" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\SwiftUCRT.h"
+      shell: pwsh
+
+    - name: VS2022 Compatibility Installation
+      if: runner.os == 'Windows' && steps.swift-version.outputs.is_newer_than_5_9 == 'false'
+      run: |
+        Copy-Item "$env:SDKROOT\usr\share\ucrt.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\ucrt\module.modulemap"
+        if (Test-Path -Path "$env:SDKROOT\usr\share\vcruntime.modulemap") {
+          Copy-Item "$env:SDKROOT\usr\share\vcruntime.modulemap" -destination "$env:VCToolsInstallDir\include\module.modulemap"
+          Copy-Item "$env:SDKROOT\usr\share\vcruntime.apinotes" -destination "$env:VCToolsInstallDir\include\vcruntime.apinotes"
+        } else {
+          Copy-Item "$env:SDKROOT\usr\share\visualc.modulemap" -destination "$env:VCToolsInstallDir\include\module.modulemap"
+          Copy-Item "$env:SDKROOT\usr\share\visualc.apinotes" -destination "$env:VCToolsInstallDir\include\visualc.apinotes"
+        }
+        Copy-Item "$env:SDKROOT\usr\share\winsdk.modulemap" -destination "$env:UniversalCRTSdkDir\Include\$env:UCRTVersion\um\module.modulemap"
       shell: pwsh
 
     - name: Install Swift
