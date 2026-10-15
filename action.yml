@@ -349,6 +349,13 @@ runs:
         Write-Host "::notice::Updating SDK module definitions..."
 
         $SwiftRoot = Split-Path -Path (Split-Path -Path (Get-Command swift).Source -Parent) -Parent
+        $Clang = [IO.Path]::Combine($SwiftRoot, "bin", "clang.exe")
+        $ClangResourceDirectory = & $Clang -print-resource-dir
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "::error::Failed to determine the Clang resource directory"
+          exit 1
+        }
+        $ClangResourceDirectory = $ClangResourceDirectory.Trim()
         $UsesSplitWinSDKModuleMaps = Test-Path "$env:SDKROOT\usr\share\um.modulemap"
 
         # Keep the legacy layout when the installed toolchain does not provide
@@ -375,7 +382,7 @@ runs:
           };
           "Clang Module Map" = @{
             URL = "https://raw.githubusercontent.com/llvm/llvm-project/main/clang/lib/Headers/module.modulemap";
-            Destination = "$([IO.Path]::Combine("$SwiftRoot", "lib", "swift", "clang", "include", "module.modulemap"))";
+            Destination = "$([IO.Path]::Combine($ClangResourceDirectory, "include", "module.modulemap"))";
           };
         }
 
